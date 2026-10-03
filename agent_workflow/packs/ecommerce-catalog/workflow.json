@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "id": "ecommerce-catalog",
+  "name": "电商商品资料审核（虚构演示）",
+  "version": "0.1.0",
+  "description": "只审核本地合成商品资料，不上架、不调价、不操作订单或支付。",
+  "templates": {
+    "payload.json": "{\n  \"sku\": \"\",\n  \"title\": \"\",\n  \"price\": null,\n  \"currency\": \"CNY\",\n  \"synthetic\": true\n}\n",
+    "review.md": "# 商品资料审核\n\n## 检查结论\n\nTODO: 填写核对结果、问题及依据。\n"
+  },
+  "stages": [
+    {
+      "id": "collect",
+      "documents": ["agent_workflow/packs/ecommerce-catalog/SOP.md"],
+      "checks": [
+        {"id": "catalog-fields", "kind": "json-fields", "file": "payload.json", "fields": {
+          "sku": {"type": "string", "nonempty": true},
+          "title": {"type": "string", "nonempty": true},
+          "price": {"type": "number", "exclusive_minimum": 0},
+          "currency": {"type": "string", "enum": ["CNY"]},
+          "synthetic": {"type": "boolean", "equals": true}
+        }}
+      ]
+    },
+    {
+      "id": "review",
+      "documents": ["agent_workflow/packs/ecommerce-catalog/SOP.md", "docs/20-规则层/20-安全与事实源.md"],
+      "checks": [
+        {"id": "review-evidence", "kind": "file-content", "file": "review.md", "contains": ["## 检查结论"]},
+        {"id": "review-acceptance", "kind": "decision", "question": "是否接受这次本地商品资料审核的结论？这不表示商品已上架。", "recommendation": "先核对 review.md 中的事实和问题，再按实际结论回答 accept 或 revise。", "answers": ["accept", "revise"], "required_answer": "accept"}
+      ]
+    },
+    {"id": "ready", "documents": ["agent_workflow/packs/ecommerce-catalog/SOP.md"], "checks": []}
+  ]
+}

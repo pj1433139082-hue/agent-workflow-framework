@@ -1,0 +1,28 @@
+{
+  "description": "Optional read-only navigation; AGENTS.md and CLI are the complete fallback",
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|clear|compact",
+        "hooks": [{
+          "type": "command",
+          "command": "sh \"$(git rev-parse --show-toplevel)/scripts/context-hook.sh\" SessionStart",
+          "commandWindows": "pwsh -NoProfile -Command \"& (Join-Path (git rev-parse --show-toplevel) 'scripts/context-hook.ps1') -Event SessionStart\"",
+          "timeout": 10,
+          "additionalContextLimit": 1200
+        }]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [{
+          "type": "command",
+          "command": "sh \"$(git rev-parse --show-toplevel)/scripts/context-hook.sh\" UserPromptSubmit",
+          "commandWindows": "pwsh -NoProfile -Command \"& (Join-Path (git rev-parse --show-toplevel) 'scripts/context-hook.ps1') -Event UserPromptSubmit\"",
+          "timeout": 10,
+          "additionalContextLimit": 1200
+        }]
+      }
+    ]
+  }
+}

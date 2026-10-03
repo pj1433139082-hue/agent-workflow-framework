@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "id": "{{WORKFLOW_ID}}",
+  "name": "{{WORKFLOW_NAME}}",
+  "version": "0.1.0",
+  "description": "{{SCOPE_AND_NON_GOALS}}",
+  "templates": {
+    "payload.json": "{\n  \"purpose\": \"\",\n  \"synthetic\": true\n}\n",
+    "review.md": "# 审查记录\n\n## 检查结论\n\nTODO: 填写实际结论与依据。\n"
+  },
+  "stages": [
+    {
+      "id": "prepare",
+      "documents": ["agent_workflow/packs/{{WORKFLOW_ID}}/SOP.md"],
+      "checks": [
+        {"id": "required-input", "kind": "json-fields", "file": "payload.json", "fields": {
+          "purpose": {"type": "string", "nonempty": true},
+          "synthetic": {"type": "boolean", "equals": true}
+        }}
+      ]
+    },
+    {
+      "id": "review",
+      "documents": ["agent_workflow/packs/{{WORKFLOW_ID}}/SOP.md"],
+      "checks": [
+        {"id": "review-evidence", "kind": "file-content", "file": "review.md", "contains": ["## 检查结论"]},
+        {"id": "review-acceptance", "kind": "decision", "question": "是否接受本次本地交付的审查结论？", "recommendation": "先读证据，按实际结论回答 accept 或 revise。", "answers": ["accept", "revise"], "required_answer": "accept"}
+      ]
+    },
+    {"id": "complete", "documents": ["agent_workflow/packs/{{WORKFLOW_ID}}/SOP.md"], "checks": []}
+  ]
+}

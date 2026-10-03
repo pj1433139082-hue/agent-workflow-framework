@@ -1,0 +1,66 @@
+"""Public JSON CLI. All mutations are explicit and local to one workspace."""
+
+import argparse
+import json
+import sys
+
+from . import __version__, engine
+
+
+class _ArgumentParser(argparse.ArgumentParser):
+    def error(self, message: str) -> None:
+        # Do not echo raw arguments, which may accidentally contain credentials.
+        raise engine.WorkflowError("invalid_arguments", "Invalid arguments; use --help for the public command contract.")
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = _ArgumentParser(prog="agent-workflow")
+    commands = parser.add_subparsers(dest="command", required=True)
+    commands.add_parser("doctor")
+    commands.add_parser("packs")
+    new = commands.add_parser("new")
+    new.add_argument("workspace")
+    new.add_argument("--project-id", required=True)
+    new.add_argument("--workflow", required=True)
+    new.add_argument("--task-id", required=True)
+    new.add_argument("--mode", default="assisted", choices=sorted(engine.MODES))
+    new.add_argument("--apply", action="store_true")
+    for name in ("status", "context", "advance", "decision", "task-plan"):
+        command = commands.add_parser(name)
+        command.add_argument("workspace")
+        command.add_argument("--task-id", required=True)
+        if name == "context":
+            group = command.add_mutually_exclusive_group()
+            group.add_argument("--write", action="store_true")
+            group.add_argument("--check", action="store_true")
+        if name in {"advance", "decision", "task-plan"}:
+            command.add_argument("--apply", action="store_true")
+        if name == "decision":
+            command.add_argument("--decision-id", required=True)
+            command.add_argument("--answer", required=True)
+            command.add_argument("--by", required=True)
+        if name == "task-plan":
+            command.add_argument("--mode", choices=sorted(engine.MODES))
+            command.add_argument("--next-action")
+    try:
+        args = vars(parser.parse_args(argv))
+        name = args.pop("command")
+        if name == "doctor":
+            if sys.version_info < (3, 11):
+                raise engine.WorkflowError("python_version", "The collaboration tool requires Python >=3.11; business runtimes are independent.")
+            result = {"version": __version__, "python": sys.version.split()[0], "framework_root": str(engine.ROOT),
+                      "business_runtime_constraint": None, "packs": engine.packs(), "external_integrations": []}
+        elif name == "packs":
+            result = {"packs": engine.packs()}
+        elif name == "status":
+            result = engine.task_view(**args)
+        else:
+            result = getattr(engine, name.replace("-", "_"))(**args)
+        print(json.dumps({"ok": True, **result}, ensure_ascii=True, allow_nan=False))
+        return 0
+    except engine.WorkflowError as error:
+        print(json.dumps({"ok": False, "error": {"code": error.code, "message": str(error)}}, ensure_ascii=True))
+        return 2
+    except (OSError, KeyError, TypeError, ValueError):
+        print(json.dumps({"ok": False, "error": {"code": "local_input_error", "message": "A local path, fact or schema is unavailable/invalid; no external operation was performed."}}))
+        return 2

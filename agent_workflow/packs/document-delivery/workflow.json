@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "id": "document-delivery",
+  "name": "通用文档交付（虚构演示）",
+  "version": "0.1.0",
+  "description": "准备并核对本地合成文档，不向外部人员发消息或发布。",
+  "templates": {
+    "payload.json": "{\n  \"audience\": \"\",\n  \"purpose\": \"\",\n  \"synthetic\": true\n}\n",
+    "draft.md": "# 文档草稿\n\nTODO: 根据用途与读者填写正文。\n",
+    "final.md": "# 交付文档\n\nTODO: 根据审核结果填写最终正文。\n"
+  },
+  "stages": [
+    {
+      "id": "draft",
+      "documents": ["agent_workflow/packs/document-delivery/SOP.md"],
+      "checks": [
+        {"id": "document-brief", "kind": "json-fields", "file": "payload.json", "fields": {
+          "audience": {"type": "string", "nonempty": true},
+          "purpose": {"type": "string", "nonempty": true},
+          "synthetic": {"type": "boolean", "equals": true}
+        }},
+        {"id": "draft-evidence", "kind": "file-content", "file": "draft.md", "contains": ["# "]}
+      ]
+    },
+    {
+      "id": "validate",
+      "documents": ["agent_workflow/packs/document-delivery/SOP.md", "docs/30-触发层/30-验收清单.md"],
+      "checks": [
+        {"id": "final-evidence", "kind": "file-content", "file": "final.md", "contains": ["# "]},
+        {"id": "review-acceptance", "kind": "decision", "question": "是否接受这份本地文档作为本次交付？这不表示已向外部人员发送。", "recommendation": "先阅读 final.md，按实际验收结论回答 accept 或 revise。", "answers": ["accept", "revise"], "required_answer": "accept"}
+      ]
+    },
+    {"id": "complete", "documents": ["agent_workflow/packs/document-delivery/SOP.md"], "checks": []}
+  ]
+}
