@@ -6,9 +6,9 @@
 
 ## 获取和更新
 
-私有远端尚未创建。创建后，将地址代入 Windows PowerShell 模板：
+私有仓库：[agent-workflow-framework](https://github.com/pj1433139082-hue/agent-workflow-framework)。拥有该仓库访问权限的使用者可从 Windows PowerShell 获取：
 
-    $repositoryUrl = '<私有仓库地址>'
+    $repositoryUrl = 'https://github.com/pj1433139082-hue/agent-workflow-framework.git'
     git clone $repositoryUrl
     Set-Location .\agent-workflow-framework
     python -m agent_workflow doctor
@@ -19,10 +19,11 @@
     git switch main
     git pull --ff-only origin main
 
-需使用 Python 3.11 或更新版本。Windows 可在 Python Launcher 已安装时用 py -3.11 替代 python。网络命令遵循使用者现有代理；如果当前电脑使用 Clash 127.0.0.1:7897，可仅对本次 Git 命令指定代理：
+需使用 Python 3.11 或更新版本。Windows 可在 Python Launcher 已安装时用 py -3.11 替代 python。网络命令遵循使用者现有代理；需要代理时，把下面的示例地址换成自己的实际地址，仅对本次 Git 命令指定：
 
-    git -c http.proxy=http://127.0.0.1:7897 clone $repositoryUrl
-    git -c http.proxy=http://127.0.0.1:7897 pull --ff-only origin main
+    $proxyUrl = 'http://127.0.0.1:6666'
+    git -c "http.proxy=$proxyUrl" clone $repositoryUrl
+    git -c "http.proxy=$proxyUrl" pull --ff-only origin main
 
 代理示例是可选的本机配置，不要求其他使用者采用固定端口，也不会修改系统代理。
 
