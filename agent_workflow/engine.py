@@ -12,7 +12,7 @@ import re
 import shutil
 import stat
 import tempfile
-from typing import Any
+from typing import Any, cast
 
 from . import __version__
 
@@ -187,8 +187,18 @@ def load_pack(pack_id: str) -> dict[str, Any]:
                     if "exclusive_minimum" in rule and rule["type"] != "number":
                         raise WorkflowError("invalid_workflow", "Numeric bounds are only valid for number fields.")
             elif kind == "file-content":
-                if set(check) != {"id", "kind", "file", "contains"} or not isinstance(check["contains"], list) or any(not isinstance(text, str) or not text for text in check["contains"]):
+                if (not {"id", "kind", "file", "contains"} <= set(check)
+                        or not set(check) <= {"id", "kind", "file", "contains", "sections"}
+                        or not isinstance(check["contains"], list)
+                        or any(not isinstance(text, str) or not text for text in check["contains"])):
                     raise WorkflowError("invalid_workflow", "file-content requires literal text markers.")
+                if "sections" in check:
+                    sections = check["sections"]
+                    if (not isinstance(sections, list) or not sections
+                            or any(not isinstance(title, str) or not title.strip()
+                                   or "\n" in title or "\r" in title for title in sections)
+                            or len(set(sections)) != len(sections)):
+                        raise WorkflowError("invalid_workflow", "sections requires unique nonempty Markdown section titles.")
                 local_path(PACKS, check["file"])
             elif kind == "decision":
                 if set(check) != {"id", "kind", "question", "recommendation", "answers", "required_answer"} or check_id in decisions:
@@ -271,6 +281,34 @@ def evidence_digest(task_dir: Path) -> str:
     return hashlib.sha256(encode(evidence(task_dir)).encode("utf-8")).hexdigest()
 
 
+def nonempty_markdown_sections(content: str, required: list[str]) -> bool:
+    """Check prose under real level-two headings, not headings in fenced examples."""
+    sections: dict[str, bool] = {}
+    current: str | None = None
+    fence: str | None = None
+    content = re.sub(r"<!--.*?(?:-->|$)", "", content, flags=re.DOTALL)
+    for line in content.splitlines():
+        delimiter = re.match(r"^ {0,3}(`{3,}|~{3,})(.*)$", line)
+        if fence is not None:
+            if (delimiter and delimiter[1][0] == fence[0]
+                    and len(delimiter[1]) >= len(fence) and not delimiter[2].strip()):
+                fence = None
+            continue
+        if delimiter:
+            fence = delimiter[1]
+            continue
+        heading = re.match(r"^ {0,3}(#{1,6})[ \t]+(.+?)[ \t]*$", line)
+        if heading:
+            title = re.sub(r"[ \t]+#+$", "", heading[2]).strip()
+            if len(heading[1]) <= 2:
+                current = title if len(heading[1]) == 2 else None
+                if current is not None:
+                    sections.setdefault(current, False)
+        elif current is not None and not line.startswith(("    ", "\t")) and re.search(r"\w", line):
+            sections[current] = True
+    return all(sections.get(title, False) for title in required)
+
+
 def evaluate(check: dict[str, Any], task_dir: Path, task: dict[str, Any]) -> dict[str, Any]:
     passed = False
     errors: list[str] = []
@@ -287,6 +325,8 @@ def evaluate(check: dict[str, Any], task_dir: Path, task: dict[str, Any]) -> dic
                 raise WorkflowError("invalid_text", "Evidence file exceeds size limit.")
             content = path.read_text(encoding="utf-8-sig")
             passed = bool(content.strip()) and not PLACEHOLDER.search(content) and all(text in content for text in check["contains"])
+            if passed and "sections" in check:
+                passed = nonempty_markdown_sections(content, check["sections"])
         except (OSError, UnicodeError):
             passed = False
         if not passed:
@@ -302,7 +342,7 @@ def evaluate(check: dict[str, Any], task_dir: Path, task: dict[str, Any]) -> dic
         for key, rule in check["fields"].items():
             value = payload.get(key)
             valid = ((isinstance(value, str) if rule["type"] == "string" else
-                      type(value) in {int, float} and math.isfinite(value) if rule["type"] == "number" else
+                      type(value) in {int, float} and math.isfinite(cast(float, value)) if rule["type"] == "number" else
                       isinstance(value, bool)))
             if rule.get("nonempty") and (not isinstance(value, str) or not value.strip() or PLACEHOLDER.search(value)):
                 valid = False
@@ -385,17 +425,32 @@ def save_task(task_dir: Path, task: dict[str, Any]) -> dict[str, Any]:
 
 
 def new(workspace: str | Path, project_id: str, workflow: str, task_id: str,
-        mode: str = "assisted", *, apply: bool = False) -> dict[str, Any]:
+        mode: str = "assisted", *, apply: bool = False,
+        root_files: dict[str, str] | None = None,
+        template_overrides: dict[str, str] | None = None) -> dict[str, Any]:
     root = external_workspace(workspace)
     identifier(project_id)
     identifier(task_id)
     pack = load_pack(workflow)
+    root_files = root_files or {}
+    template_overrides = template_overrides or {}
+    for relative, content in root_files.items():
+        local_path(root, relative)
+        if (PurePosixPath(relative).parts[0] in {"project.json", "tasks"}
+                or any(part.startswith(".write-") for part in PurePosixPath(relative).parts)
+                or not isinstance(content, str)):
+            raise WorkflowError("invalid_project_template", "Project templates cannot replace project/task facts.")
+    if (not set(template_overrides) <= set(pack["templates"])
+            or any(not isinstance(content, str) for content in template_overrides.values())):
+        raise WorkflowError("invalid_project_template", "Only declared task templates can receive initial inputs.")
     if mode not in MODES:
         raise WorkflowError("invalid_mode", "Unknown interaction mode.")
     if root.exists():
         raise WorkflowError("workspace_exists", "Workspace already exists; no files were overwritten.")
     result = {"project_id": project_id, "task_id": task_id, "workflow": workflow, "mode": mode,
               "workspace": str(root), "applied": apply}
+    if root_files:
+        result["project_files"] = sorted(root_files)
     if not apply:
         return result
     if not root.parent.is_dir():
@@ -409,8 +464,12 @@ def new(workspace: str | Path, project_id: str, workflow: str, task_id: str,
                 "pack_digest": pack_digest(workflow), "mode": mode,
                 "stage": pack["stages"][0]["id"], "next_action": "Fill the declared inputs and run status.", "decisions": {}}
         atomic_json(task_dir / "task.json", task)
-        for relative, content in pack["templates"].items():
+        for relative, content in {**pack["templates"], **template_overrides}.items():
             destination = local_path(task_dir, relative)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(content, encoding="utf-8", newline="\n")
+        for relative, content in root_files.items():
+            destination = local_path(temporary, relative)
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_text(content, encoding="utf-8", newline="\n")
         # mkdir is an exclusive reservation on both Windows and POSIX. POSIX rename

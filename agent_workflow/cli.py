@@ -3,12 +3,13 @@
 import argparse
 import json
 import sys
+from typing import NoReturn
 
-from . import __version__, engine
+from . import __version__, engine, project_start
 
 
 class _ArgumentParser(argparse.ArgumentParser):
-    def error(self, message: str) -> None:
+    def error(self, message: str) -> NoReturn:
         # Do not echo raw arguments, which may accidentally contain credentials.
         raise engine.WorkflowError("invalid_arguments", "Invalid arguments; use --help for the public command contract.")
 
@@ -25,6 +26,15 @@ def main(argv: list[str] | None = None) -> int:
     new.add_argument("--task-id", required=True)
     new.add_argument("--mode", default="assisted", choices=sorted(engine.MODES))
     new.add_argument("--apply", action="store_true")
+    start = commands.add_parser("start")
+    start.add_argument("workspace")
+    start.add_argument("--project-id", required=True)
+    start.add_argument("--name", required=True)
+    start.add_argument("--brief", default="")
+    start.add_argument("--task-id", default="kickoff")
+    start.add_argument("--mode", default="assisted", choices=sorted(engine.MODES))
+    start.add_argument("--with-docs", action="append", choices=sorted(project_start.OPTIONAL_DOCUMENTS), default=[])
+    start.add_argument("--apply", action="store_true")
     for name in ("status", "context", "advance", "decision", "task-plan"):
         command = commands.add_parser(name)
         command.add_argument("workspace")
@@ -54,6 +64,8 @@ def main(argv: list[str] | None = None) -> int:
             result = {"packs": engine.packs()}
         elif name == "status":
             result = engine.task_view(**args)
+        elif name == "start":
+            result = project_start.start(**args)
         else:
             result = getattr(engine, name.replace("-", "_"))(**args)
         print(json.dumps({"ok": True, **result}, ensure_ascii=True, allow_nan=False))
