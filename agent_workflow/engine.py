@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
 import hashlib
 import json
 import math
@@ -17,7 +16,7 @@ from typing import TYPE_CHECKING, Any, cast
 from . import __version__
 
 if TYPE_CHECKING:
-    from .verification import VerificationBatch
+    from .verification import VerificationBatch, VerifiedTask
 
 ROOT = Path(__file__).resolve().parent.parent
 PACKS = Path(__file__).resolve().parent / "packs"
@@ -33,9 +32,10 @@ BASE_DOCS = ["AGENTS.md", "docs/00-入口层/00-协作总览.md"]
 
 
 class WorkflowError(ValueError):
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: str, *, completion: dict[str, Any] | None = None):
         super().__init__(message)
         self.code = code
+        self.completion = completion
 
 
 def identifier(value: Any) -> str:
@@ -126,18 +126,41 @@ def encode(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, indent=2, allow_nan=False) + "\n"
 
 
-def atomic_json(path: Path, value: Any) -> None:
+def atomic_json(path: Path, value: Any) -> bool:
+    """Atomically replace one JSON file; return whether staging cleanup finished.
+
+    Raise only for a pre-replacement failure. A later cleanup error must not
+    conceal a committed fact. Unknown replacements are preserved, not removed.
+    """
     safe_path(path)
     fd, name = tempfile.mkstemp(prefix=".write-", dir=path.parent)
     temporary = Path(name)
+    owned = os.fstat(fd)
+    cleanup_complete = True
     try:
         with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
             stream.write(encode(value))
             stream.flush()
             os.fsync(stream.fileno())
+        current = safe_path(temporary).lstat()
+        if (current.st_dev, current.st_ino) != (owned.st_dev, owned.st_ino) or not stat.S_ISREG(current.st_mode):
+            raise WorkflowError("unsafe_path", "The staged write changed; no unknown file was committed.")
+        safe_path(path)
         os.replace(temporary, path)
     finally:
-        temporary.unlink(missing_ok=True)
+        try:
+            remaining: os.stat_result | None
+            try:
+                remaining = safe_path(temporary).lstat()
+            except FileNotFoundError:
+                remaining = None
+            if remaining is not None and ((remaining.st_dev, remaining.st_ino) != (owned.st_dev, owned.st_ino)
+                                          or not stat.S_ISREG(remaining.st_mode)):
+                raise WorkflowError("cleanup_changed", "The staging path changed; preserve unknown content.")
+            temporary.unlink(missing_ok=True)
+        except (OSError, WorkflowError):
+            cleanup_complete = False
+    return cleanup_complete
 
 
 def load_pack(pack_id: str, *, _batch: VerificationBatch | None = None) -> dict[str, Any]:
@@ -351,6 +374,12 @@ def evaluate(check: dict[str, Any], task_dir: Path, task: dict[str, Any], *,
                 passed = nonempty_markdown_sections(content, check["sections"])
         except (OSError, UnicodeError):
             passed = False
+        except WorkflowError as error:
+            if error.code != "invalid_text":
+                raise
+            # A bounded-content rejection is a failed content check, not a
+            # new prerequisite for recording a current answer or task plan.
+            errors.append(error.code)
         if not passed:
             errors.append("missing_or_placeholder_evidence")
     else:
@@ -414,10 +443,18 @@ def task_view(workspace: str | Path, task_id: str) -> dict[str, Any]:
 def context(workspace: str | Path, task_id: str, *, write: bool = False, check: bool = False) -> dict[str, Any]:
     from .verification import verify_task
 
-    verified = verify_task(workspace, task_id)
+    if write:
+        from .task_writes import repair_index
+
+        return repair_index(workspace, task_id)
+    return _context_view(verify_task(workspace, task_id), check=check)
+
+
+def _context_view(verified: VerifiedTask, *, write: bool = False, check: bool = False) -> dict[str, Any]:
     view = verified.view
     path = safe_path(verified.task_dir / "workflow-state.json")
     matches = False
+    cleanup_complete = True
     if path.is_file():
         try:
             matches = read_json(path) == view
@@ -425,35 +462,13 @@ def context(workspace: str | Path, task_id: str, *, write: bool = False, check: 
             if error.code == "unsafe_path":
                 raise
     if write:
-        atomic_json(path, view)
+        cleanup_complete = atomic_json(path, view)
         matches = True
     if check and not matches:
         raise WorkflowError("snapshot_drift", "Generated state is missing or stale; use context --write, not a repeated business operation.")
-    return {**view, "snapshot_matches": matches, "framework_root": str(ROOT),
+    return {**view, **({"file_cleanup": "incomplete"} if not cleanup_complete else {}),
+            "snapshot_matches": matches, "framework_root": str(ROOT),
             "documents_absolute": [str(local_path(ROOT, document)) for document in view["documents"]]}
-
-
-@contextmanager
-def task_lock(task_dir: Path):
-    lock = safe_path(task_dir / ".task-write-lock")
-    try:
-        lock.mkdir()
-    except FileExistsError as error:
-        raise WorkflowError("task_busy", "Another task write is in progress; do not replay an uncertain operation.") from error
-    try:
-        yield
-    finally:
-        lock.rmdir()
-
-
-def save_task(task_dir: Path, task: dict[str, Any]) -> dict[str, Any]:
-    atomic_json(task_dir / "task.json", task)
-    try:
-        context(task_dir.parent.parent, task["id"], write=True)
-    except (WorkflowError, OSError):
-        return {"operation": "completed", "local_record": "incomplete", "repeat_operation": False,
-                "recovery": ["context", str(task_dir.parent.parent), "--task-id", task["id"], "--write"]}
-    return {"operation": "completed", "local_record": "complete", "repeat_operation": False}
 
 
 def new(workspace: str | Path, project_id: str, workflow: str, task_id: str,
@@ -488,14 +503,19 @@ def new(workspace: str | Path, project_id: str, workflow: str, task_id: str,
     if not root.parent.is_dir():
         raise WorkflowError("missing_parent", "Create or select the workspace parent directory first.")
     temporary = Path(tempfile.mkdtemp(prefix=".agent-workflow-new-", dir=root.parent))
+    staging_cleanup_complete = True
     try:
         task_dir = temporary / "tasks" / task_id
         task_dir.mkdir(parents=True)
-        atomic_json(temporary / "project.json", {"schema_version": "1.0", "project_id": project_id})
+        staging_cleanup_complete = atomic_json(temporary / "project.json", {"schema_version": "1.0", "project_id": project_id})
+        if not staging_cleanup_complete:
+            raise WorkflowError("workspace_creation_incomplete", "Initialization staging cleanup was interrupted; preserve the staging directory for inspection, not replay.")
         task = {"schema_version": "1.0", "id": task_id, "project_id": project_id, "workflow": workflow,
                 "pack_digest": pack_digest(workflow), "mode": mode,
                 "stage": pack["stages"][0]["id"], "next_action": "Fill the declared inputs and run status.", "decisions": {}}
-        atomic_json(task_dir / "task.json", task)
+        staging_cleanup_complete = atomic_json(task_dir / "task.json", task)
+        if not staging_cleanup_complete:
+            raise WorkflowError("workspace_creation_incomplete", "Initialization staging cleanup was interrupted; preserve the staging directory for inspection, not replay.")
         for relative, content in {**pack["templates"], **template_overrides}.items():
             destination = local_path(task_dir, relative)
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -524,10 +544,12 @@ def new(workspace: str | Path, project_id: str, workflow: str, task_id: str,
             checked = safe_path(temporary)
             if checked.parent != root.parent or not checked.name.startswith(".agent-workflow-new-"):
                 raise WorkflowError("unsafe_path", "The owned staging path changed; no recursive cleanup was attempted.")
-            shutil.rmtree(checked)
+            # A replaced cleanup path or failed pre-commit staging cleanup must
+            # never be swept away recursively or moved into the new workspace.
+            if staging_cleanup_complete and not any(path.name.startswith(".write-") for path in checked.rglob("*")):
+                shutil.rmtree(checked)
     try:
-        context(root, task_id, write=True)
-        result["completion"] = {"operation": "completed", "local_record": "complete", "repeat_operation": False}
+        result["completion"] = context(root, task_id, write=True)["completion"]
     except (WorkflowError, OSError):
         result["completion"] = {"operation": "completed", "local_record": "incomplete", "repeat_operation": False,
                                 "recovery": ["context", str(root), "--task-id", task_id, "--write"]}
@@ -535,57 +557,52 @@ def new(workspace: str | Path, project_id: str, workflow: str, task_id: str,
 
 
 def advance(workspace: str | Path, task_id: str, *, apply: bool = False) -> dict[str, Any]:
-    task_dir, _, task, _ = load_task(workspace, task_id)
-    with task_lock(task_dir) if apply else _no_lock():
-        view = task_view(workspace, task_id)
+    from .task_writes import change_task
+
+    def prepare(verified: VerifiedTask) -> tuple[dict[str, Any], dict[str, Any]]:
+        view = verified.view
         if not view["can_advance"]:
             raise WorkflowError("transition_blocked", "No next stage or required evidence/business answers are missing; run status.")
-        task = load_task(workspace, task_id)[2]
-        result = {"from_stage": task["stage"], "to_stage": view["next_stage"], "applied": apply}
-        if apply:
-            task["stage"] = view["next_stage"]
-            task["next_action"] = "Run context/status and follow the current business stage."
-            result["completion"] = save_task(task_dir, task)
-        return result
+        return ({"from_stage": verified.task["stage"], "to_stage": view["next_stage"]},
+                {"stage": view["next_stage"], "next_action": "Run context/status and follow the current business stage."})
 
-
-@contextmanager
-def _no_lock():
-    yield
+    return change_task(workspace, task_id, prepare, apply=apply)
 
 
 def decision(workspace: str | Path, task_id: str, decision_id: str, answer: str, by: str,
              *, apply: bool = False) -> dict[str, Any]:
+    from .task_writes import change_task
+
     identifier(decision_id)
     plain_text(by, maximum=100)
-    task_dir, _, _, _ = load_task(workspace, task_id)
-    with task_lock(task_dir) if apply else _no_lock():
-        _, _, task, pack = load_task(workspace, task_id)
-        stage = next(stage for stage in pack["stages"] if stage["id"] == task["stage"])
+
+    def prepare(verified: VerifiedTask) -> tuple[dict[str, Any], dict[str, Any]]:
+        stage = next(stage for stage in verified.pack["stages"] if stage["id"] == verified.task["stage"])
         definition = next((check for check in stage["checks"] if check["kind"] == "decision" and check["id"] == decision_id), None)
         if definition is None or answer not in definition["answers"]:
             raise WorkflowError("invalid_decision", "Only a current, defined business question with an explicit choice can be answered.")
-        result = {"decision_id": decision_id, "answer": answer, "by": by, "applied": apply}
-        if apply:
-            task["decisions"][decision_id] = {"answer": answer, "by": by, "evidence_digest": evidence_digest(task_dir)}
-            result["completion"] = save_task(task_dir, task)
-        return result
+        return ({"decision_id": decision_id, "answer": answer, "by": by},
+                {"decisions": {**verified.task["decisions"], decision_id:
+                               {"answer": answer, "by": by, "evidence_digest": verified.evidence_digest}}})
+
+    return change_task(workspace, task_id, prepare, apply=apply)
 
 
 def task_plan(workspace: str | Path, task_id: str, *, mode: str | None = None,
               next_action: str | None = None, apply: bool = False) -> dict[str, Any]:
-    task_dir, _, task, _ = load_task(workspace, task_id)
+    from .task_writes import change_task
+
     if mode is not None and mode not in MODES:
         raise WorkflowError("invalid_mode", "Unknown interaction mode.")
     if next_action is not None:
         plain_text(next_action)
-    with task_lock(task_dir) if apply else _no_lock():
-        task = load_task(workspace, task_id)[2]
+    def prepare(verified: VerifiedTask) -> tuple[dict[str, Any], dict[str, Any]]:
+        changes = {}
         if mode is not None:
-            task["mode"] = mode
+            changes["mode"] = mode
         if next_action is not None:
-            task["next_action"] = next_action
-        result = {"task": {key: task[key] for key in ("id", "workflow", "mode", "stage", "next_action")}, "applied": apply}
-        if apply:
-            result["completion"] = save_task(task_dir, task)
-        return result
+            changes["next_action"] = next_action
+        task = {**verified.task, **changes}
+        return {"task": {key: task[key] for key in ("id", "workflow", "mode", "stage", "next_action")}}, changes
+
+    return change_task(workspace, task_id, prepare, apply=apply)

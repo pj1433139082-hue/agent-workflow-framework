@@ -1,4 +1,4 @@
-"""Test-side public CLI runner: passive open observation and file-I/O coordination.
+"""Test-side public CLI runner: passive observation and file-I/O coordination.
 
 No framework imports, private function patches, or production test switches.
 The audit callback runs before an OS open, so a parent can change real fixtures
@@ -26,31 +26,45 @@ def main() -> None:
     paused = 0
     in_callback = False
 
+    pause_event = config.get("pause_event", "open")
+
     def observe(event: str, values: tuple) -> None:
         nonlocal paused, in_callback
-        if in_callback or event != "open" or not isinstance(values[0], (str, bytes)):
+        if in_callback or event not in {"open", pause_event}:
             return
-        name, mode, flags = values
-        if isinstance(mode, str):
-            reading = "r" in mode or "+" in mode
-        else:
-            reading = flags & (os.O_WRONLY | os.O_RDWR) != os.O_WRONLY
-        if not reading:
+        target = config.get("pause_target", 0) if event == pause_event else 0
+        if not isinstance(values[target], (str, bytes)):
             return
+        if event == "open":
+            name, mode, flags = values
+            if isinstance(mode, str):
+                reading = "r" in mode or "+" in mode
+            else:
+                reading = flags & (os.O_WRONLY | os.O_RDWR) != os.O_WRONLY
+            if not reading:
+                return
         in_callback = True
         try:
-            path = Path(os.fsdecode(name)).absolute()
-            if any(path.is_relative_to(root) for root in roots):
+            path = Path(os.fsdecode(values[target])).absolute()
+            if event == "open" and any(path.is_relative_to(root) for root in roots):
                 key = str(path)
                 reads[key] = reads.get(key, 0) + 1
-            if pause == path and (not paused or config.get("pause_each", False)):
+            matches_pause = pause == path or (
+                pause is None and config.get("pause_parent")
+                and path.parent == Path(config["pause_parent"]).absolute()
+                and path.name.startswith(config.get("pause_name_prefix", ""))) or (
+                pause is None and config.get("pause_ancestor")
+                and path.parent.parent == Path(config["pause_ancestor"]).absolute()
+                and path.parent.name.startswith(config.get("pause_directory_prefix", ""))
+                and path.name.startswith(config.get("pause_name_prefix", "")))
+            if event == pause_event and matches_pause and (not paused or config.get("pause_each", False)):
                 paused += 1
                 if config.get("pause_each", False):
                     signal = Path(config["signal"] + f".{paused}")
                     release = Path(config["release"] + f".{paused}")
                 else:
                     signal, release = Path(config["signal"]), Path(config["release"])
-                signal.touch()
+                signal.write_text(str(path), encoding="utf-8")
                 deadline = time.monotonic() + 20
                 while not release.exists():
                     if time.monotonic() >= deadline:

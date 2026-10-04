@@ -17,7 +17,7 @@ description: Route generic collaboration tasks to their selected business workfl
 
 `advance` 只推进本地协作状态。此版本不实现真实业务写入、退款、支付、上架、模型发布或发消息。任务阶段和 hook 不是永久业务授权，任何将来的外部操作须有针对具体目标和内容的用户指令，不从选择全自动推断许可。
 
-如果一次操作完成但生成索引失败，报告事实已完成、本地记录不完整，只运行返回的 context 修复命令；不重放 new/advance。
+如果一次操作完成但生成索引或清理失败，按 completion 回执报告事实已完成、本地记录不完整；不重放 new/advance/decision/task-plan。只有索引需要重建时运行返回的同一目标 context 修复命令；锁或暂存路径提示检查时，先按安全规则核对，不自动删除未知内容。task_busy 不排队、不推断前次结果；无可靠回执的中断先读 status/context。
 
 hook 只读且需客户端支持与信任；不可用时 AGENTS.md＋CLI 完整接管。Skillshare 不可用时直接读本文件，不增加安装或审批门禁。
 

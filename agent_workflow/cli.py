@@ -3,7 +3,7 @@
 import argparse
 import json
 import sys
-from typing import NoReturn
+from typing import Any, NoReturn
 
 from . import __version__, engine, project_start
 
@@ -71,7 +71,10 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({"ok": True, **result}, ensure_ascii=True, allow_nan=False))
         return 0
     except engine.WorkflowError as error:
-        print(json.dumps({"ok": False, "error": {"code": error.code, "message": str(error)}}, ensure_ascii=True))
+        failure: dict[str, Any] = {"ok": False, "error": {"code": error.code, "message": str(error)}}
+        if error.completion is not None:
+            failure["completion"] = error.completion
+        print(json.dumps(failure, ensure_ascii=True))
         return 2
     except (OSError, KeyError, TypeError, ValueError):
         print(json.dumps({"ok": False, "error": {"code": "local_input_error", "message": "A local path, fact or schema is unavailable/invalid; no external operation was performed."}}))
