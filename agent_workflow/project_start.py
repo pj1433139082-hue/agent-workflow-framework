@@ -1,6 +1,7 @@
 """Create a project entry and its planning task using the same workflow engine."""
 
 from pathlib import Path
+import stat
 from typing import Any
 
 from . import engine
@@ -18,21 +19,39 @@ OPTIONAL_DOCUMENTS = {
 }
 
 
+def select_documents(documents: list[str] | None) -> list[str]:
+    if documents is not None and (not isinstance(documents, list)
+            or any(not isinstance(document, str) or document not in OPTIONAL_DOCUMENTS for document in documents)):
+        raise engine.WorkflowError("invalid_project_documents", "Choose only declared optional project documents.")
+    return sorted(set(documents or []))
+
+
+def render_project_files(task_id: str, relatives: list[str]) -> dict[str, str]:
+    engine.identifier(task_id)
+    directory = engine.local_path(engine.ROOT, "templates/project")
+    files = {}
+    for relative in relatives:
+        path = engine.local_path(directory, relative + ".tmpl")
+        info = path.stat()
+        if not stat.S_ISREG(info.st_mode) or info.st_size > 1_000_000:
+            raise engine.WorkflowError("invalid_project_template", "A declared project template is unavailable or too large.")
+        content = path.read_text(encoding="utf-8").replace("{{TASK_ID}}", task_id)
+        if len(content.encode("utf-8")) > 1_000_000 or "{{" in content or "}}" in content:
+            raise engine.WorkflowError("invalid_project_template", "A project template contains unsupported placeholders or exceeds the size limit.")
+        files[relative] = content
+    return files
+
+
 def start(workspace: str | Path, project_id: str, name: str, brief: str = "",
           task_id: str = "kickoff", mode: str = "assisted", *, apply: bool = False,
           with_docs: list[str] | None = None) -> dict[str, Any]:
     engine.identifier(task_id)
-    if (with_docs is not None and (not isinstance(with_docs, list)
-            or any(not isinstance(document, str) or document not in OPTIONAL_DOCUMENTS
-                   for document in with_docs))):
-        raise engine.WorkflowError("invalid_project_documents", "Choose only declared optional project documents.")
+    documents = select_documents(with_docs)
     name = engine.plain_text(name, maximum=100)
     if brief:
         brief = engine.plain_text(brief)
-    directory = engine.local_path(engine.ROOT, "templates/project")
-    selected = [OPTIONAL_DOCUMENTS[document] for document in sorted(set(with_docs or []))]
-    files = {relative: engine.local_path(directory, relative + ".tmpl").read_text(encoding="utf-8")
-             .replace("{{TASK_ID}}", task_id) for relative in (*PROJECT_FILES, *selected)}
+    selected = [OPTIONAL_DOCUMENTS[document] for document in documents]
+    files = render_project_files(task_id, [*PROJECT_FILES, *selected])
     files[".agent-workflow.local.json"] = engine.encode({
         "schema_version": "1.0", "framework_root": str(engine.ROOT), "task_id": task_id,
     })

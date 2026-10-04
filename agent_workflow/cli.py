@@ -5,7 +5,7 @@ import json
 import sys
 from typing import Any, NoReturn
 
-from . import __version__, engine, project_start
+from . import __version__, engine, project_documents, project_start
 
 
 class _ArgumentParser(argparse.ArgumentParser):
@@ -35,6 +35,13 @@ def main(argv: list[str] | None = None) -> int:
     start.add_argument("--mode", default="assisted", choices=sorted(engine.MODES))
     start.add_argument("--with-docs", action="append", choices=sorted(project_start.OPTIONAL_DOCUMENTS), default=[])
     start.add_argument("--apply", action="store_true")
+    documents = commands.add_parser("project-docs", help="Preview or create only missing optional project documents.",
+                                    description="Existing valid workspace/task only. Default is read-only; existing ordinary files are never overwritten. Task facts and index remain unchanged.")
+    documents.add_argument("workspace", help="Existing framework-created workspace outside this checkout.")
+    documents.add_argument("--task-id", required=True, help="Explicit existing task ID, not a path.")
+    documents.add_argument("--with-docs", action="append", required=True, choices=sorted(project_start.OPTIONAL_DOCUMENTS),
+                           help="Repeat to select documents; duplicate selections are deduplicated.")
+    documents.add_argument("--apply", action="store_true", help="Create only missing documents; report created/preserved/pending progress.")
     for name in ("status", "context", "advance", "decision", "task-plan"):
         command = commands.add_parser(name)
         command.add_argument("workspace")
@@ -66,6 +73,8 @@ def main(argv: list[str] | None = None) -> int:
             result = engine.task_view(**args)
         elif name == "start":
             result = project_start.start(**args)
+        elif name == "project-docs":
+            result = project_documents.complete(**args)
         else:
             result = getattr(engine, name.replace("-", "_"))(**args)
         print(json.dumps({"ok": True, **result}, ensure_ascii=True, allow_nan=False))
@@ -74,6 +83,8 @@ def main(argv: list[str] | None = None) -> int:
         failure: dict[str, Any] = {"ok": False, "error": {"code": error.code, "message": str(error)}}
         if error.completion is not None:
             failure["completion"] = error.completion
+        if isinstance(error, project_documents.DocumentError):
+            failure["progress"] = error.progress
         print(json.dumps(failure, ensure_ascii=True))
         return 2
     except (OSError, KeyError, TypeError, ValueError):
