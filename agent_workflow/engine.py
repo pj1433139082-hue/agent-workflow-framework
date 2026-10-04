@@ -12,9 +12,12 @@ import re
 import shutil
 import stat
 import tempfile
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from . import __version__
+
+if TYPE_CHECKING:
+    from .verification import VerificationBatch
 
 ROOT = Path(__file__).resolve().parent.parent
 PACKS = Path(__file__).resolve().parent / "packs"
@@ -94,20 +97,29 @@ def _object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
     return result
 
 
-def read_json(path: Path) -> dict[str, Any]:
-    safe_path(path)
+def decode_json(content: bytes) -> dict[str, Any]:
+    if len(content) > 1_000_000:
+        raise WorkflowError("invalid_json", "JSON input exceeds the size limit.")
     try:
-        if path.stat().st_size > 1_000_000:
-            raise WorkflowError("invalid_json", "JSON input exceeds the size limit.")
-        value = json.loads(path.read_text(encoding="utf-8-sig"), object_pairs_hook=_object,
+        value = json.loads(content.decode("utf-8-sig"), object_pairs_hook=_object,
                            parse_constant=lambda _: (_ for _ in ()).throw(WorkflowError("invalid_json", "Nonfinite JSON values are not accepted.")))
     except (json.JSONDecodeError, UnicodeError) as error:
         raise WorkflowError("invalid_json", "The JSON document cannot be decoded.") from error
-    except OSError as error:
-        raise WorkflowError("missing_file", "A required local JSON document is unavailable.") from error
     if not isinstance(value, dict):
         raise WorkflowError("invalid_json", "The JSON root must be an object.")
     return value
+
+
+def read_json(path: Path, *, _batch: VerificationBatch | None = None) -> dict[str, Any]:
+    safe_path(path)
+    try:
+        if _batch is not None:
+            return _batch.json(path)
+        if path.stat().st_size > 1_000_000:
+            raise WorkflowError("invalid_json", "JSON input exceeds the size limit.")
+        return decode_json(path.read_bytes())
+    except OSError as error:
+        raise WorkflowError("missing_file", "A required local JSON document is unavailable.") from error
 
 
 def encode(value: Any) -> str:
@@ -128,12 +140,12 @@ def atomic_json(path: Path, value: Any) -> None:
         temporary.unlink(missing_ok=True)
 
 
-def load_pack(pack_id: str) -> dict[str, Any]:
+def load_pack(pack_id: str, *, _batch: VerificationBatch | None = None) -> dict[str, Any]:
     identifier(pack_id)
     path = local_path(PACKS, f"{pack_id}/workflow.json")
-    if not path.is_file():
+    if not (_batch.is_file(path) if _batch is not None else path.is_file()):
         raise WorkflowError("unknown_workflow", "No such installed business workflow.")
-    pack = read_json(path)
+    pack = read_json(path, _batch=_batch)
     if set(pack) != {"schema_version", "id", "name", "version", "description", "templates", "stages"} or pack.get("schema_version") != "1.0" or pack.get("id") != pack_id:
         raise WorkflowError("invalid_workflow", "The business pack has an unsupported schema or identity.")
     for field in ("name", "version", "description"):
@@ -161,7 +173,8 @@ def load_pack(pack_id: str) -> dict[str, Any]:
         if not isinstance(stage["documents"], list) or not isinstance(stage["checks"], list):
             raise WorkflowError("invalid_workflow", "Documents and checks must be lists.")
         for document in stage["documents"]:
-            if not local_path(ROOT, document).is_file():
+            document_path = local_path(ROOT, document)
+            if not (_batch.is_file(document_path) if _batch is not None else document_path.is_file()):
                 raise WorkflowError("invalid_workflow", "A business pack documentation pointer is missing.")
         for check in stage["checks"]:
             if not isinstance(check, dict):
@@ -220,23 +233,23 @@ def packs() -> list[dict[str, str]]:
             for pack in (load_pack(path.name) for path in sorted(PACKS.iterdir()) if path.is_dir())]
 
 
-def load_task(workspace: str | Path, task_id: str) -> tuple[Path, dict[str, Any], dict[str, Any], dict[str, Any]]:
+def load_task(workspace: str | Path, task_id: str, *, _batch: VerificationBatch | None = None) -> tuple[Path, dict[str, Any], dict[str, Any], dict[str, Any]]:
     root = external_workspace(workspace)
     identifier(task_id)
-    project = read_json(root / "project.json")
+    project = read_json(root / "project.json", _batch=_batch)
     if set(project) != {"schema_version", "project_id"} or project.get("schema_version") != "1.0":
         raise WorkflowError("invalid_project", "The project identity is invalid.")
     identifier(project["project_id"])
     task_dir = local_path(root, f"tasks/{task_id}")
-    task = read_json(task_dir / "task.json")
+    task = read_json(task_dir / "task.json", _batch=_batch)
     fields = {"schema_version", "id", "project_id", "workflow", "pack_digest", "mode", "stage", "next_action", "decisions"}
     if set(task) != fields or task.get("schema_version") != "1.0" or task.get("id") != task_id or task.get("project_id") != project["project_id"]:
         raise WorkflowError("task_identity_mismatch", "Task and project identities do not match.")
     if task["mode"] not in MODES or not isinstance(task["decisions"], dict):
         raise WorkflowError("invalid_task", "Task execution mode or decisions are invalid.")
     plain_text(task["next_action"])
-    pack = load_pack(task["workflow"])
-    if task["pack_digest"] != pack_digest(pack["id"]):
+    pack = load_pack(task["workflow"], _batch=_batch)
+    if task["pack_digest"] != pack_digest(pack["id"], _batch=_batch):
         raise WorkflowError("workflow_changed", "The business pack changed; review and migrate the task explicitly instead of silently changing its rules.")
     if task["stage"] not in {stage["id"] for stage in pack["stages"]}:
         raise WorkflowError("invalid_task", "The task stage is not in its business workflow.")
@@ -258,15 +271,19 @@ def digest(path: Path) -> str:
     return hasher.hexdigest()
 
 
-def pack_digest(pack_id: str) -> str:
+def pack_digest(pack_id: str, *, _batch: VerificationBatch | None = None) -> str:
     directory = local_path(PACKS, identifier(pack_id))
+    if _batch is not None:
+        return hashlib.sha256(encode(_batch.manifest(directory, pack=True)).encode("utf-8")).hexdigest()
     files = {path.relative_to(directory).as_posix(): digest(path)
              for path in sorted(directory.rglob("*"))
              if safe_path(path).is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"}
     return hashlib.sha256(encode(files).encode("utf-8")).hexdigest()
 
 
-def evidence(task_dir: Path) -> dict[str, str]:
+def evidence(task_dir: Path, *, _batch: VerificationBatch | None = None) -> dict[str, str]:
+    if _batch is not None:
+        return _batch.manifest(task_dir, pack=False)
     result: dict[str, str] = {}
     for path in sorted(task_dir.rglob("*")):
         safe_path(path)
@@ -309,21 +326,26 @@ def nonempty_markdown_sections(content: str, required: list[str]) -> bool:
     return all(sections.get(title, False) for title in required)
 
 
-def evaluate(check: dict[str, Any], task_dir: Path, task: dict[str, Any]) -> dict[str, Any]:
+def evaluate(check: dict[str, Any], task_dir: Path, task: dict[str, Any], *,
+             _batch: VerificationBatch | None = None, _evidence_digest: str | None = None) -> dict[str, Any]:
     passed = False
     errors: list[str] = []
     kind = check["kind"]
     if kind == "decision":
         answer = task["decisions"].get(check["id"], {})
-        passed = answer.get("answer") == check["required_answer"] and answer.get("evidence_digest") == evidence_digest(task_dir)
+        current_digest = _evidence_digest if _evidence_digest is not None else evidence_digest(task_dir)
+        passed = answer.get("answer") == check["required_answer"] and answer.get("evidence_digest") == current_digest
         if not passed:
             errors.append("business_answer_required_or_evidence_changed")
     elif kind == "file-content":
         path = local_path(task_dir, check["file"])
         try:
-            if path.stat().st_size > 1_000_000:
-                raise WorkflowError("invalid_text", "Evidence file exceeds size limit.")
-            content = path.read_text(encoding="utf-8-sig")
+            if _batch is not None:
+                content = _batch.text(path)
+            else:
+                if path.stat().st_size > 1_000_000:
+                    raise WorkflowError("invalid_text", "Evidence file exceeds size limit.")
+                content = path.read_text(encoding="utf-8-sig")
             passed = bool(content.strip()) and not PLACEHOLDER.search(content) and all(text in content for text in check["contains"])
             if passed and "sections" in check:
                 passed = nonempty_markdown_sections(content, check["sections"])
@@ -333,7 +355,7 @@ def evaluate(check: dict[str, Any], task_dir: Path, task: dict[str, Any]) -> dic
             errors.append("missing_or_placeholder_evidence")
     else:
         try:
-            payload = read_json(local_path(task_dir, check["file"]))
+            payload = read_json(local_path(task_dir, check["file"]), _batch=_batch)
         except WorkflowError as error:
             if error.code == "unsafe_path":
                 raise
@@ -358,21 +380,23 @@ def evaluate(check: dict[str, Any], task_dir: Path, task: dict[str, Any]) -> dic
     return {"id": check["id"], "kind": kind, "passed": bool(passed), "errors": errors}
 
 
-def task_view(workspace: str | Path, task_id: str) -> dict[str, Any]:
-    task_dir, project, task, pack = load_task(workspace, task_id)
+def _verified_view(task_dir: Path, project: dict[str, Any], task: dict[str, Any], pack: dict[str, Any],
+                   batch: VerificationBatch, task_evidence: dict[str, str], current_digest: str) -> dict[str, Any]:
+    task_id = task["id"]
     index = next(i for i, stage in enumerate(pack["stages"]) if stage["id"] == task["stage"])
     stage = pack["stages"][index]
     # Earlier evidence remains required after advancement; editing it cannot bypass checks.
-    checks = [evaluate(check, task_dir, task) for earlier in pack["stages"][:index + 1] for check in earlier["checks"]]
+    checks = [evaluate(check, task_dir, task, _batch=batch, _evidence_digest=current_digest)
+              for earlier in pack["stages"][:index + 1] for check in earlier["checks"]]
     failed = {check["id"] for check in checks if not check["passed"]}
     pending = [check for earlier in pack["stages"][:index + 1] for check in earlier["checks"]
                if check["kind"] == "decision" and check["id"] in failed]
     next_stage = pack["stages"][index + 1]["id"] if index + 1 < len(pack["stages"]) else None
     documents = list(dict.fromkeys(BASE_DOCS + stage["documents"] + ["docs/00-入口层/02-交互与续接.md"]))
-    sources = {"project.json": digest(task_dir.parent.parent / "project.json"),
-               f"tasks/{task_id}/task.json": digest(task_dir / "task.json"),
+    sources = {"project.json": batch.digest(task_dir.parent.parent / "project.json"),
+               f"tasks/{task_id}/task.json": batch.digest(task_dir / "task.json"),
                f"business-packs/{pack['id']}": task["pack_digest"],
-               **{f"tasks/{task_id}/{name}": value for name, value in evidence(task_dir).items()}}
+               **{f"tasks/{task_id}/{name}": value for name, value in task_evidence.items()}}
     return {"schema_version": "1.0", "framework_version": __version__, "project": {"id": project["project_id"]},
             "task": {key: task[key] for key in ("id", "workflow", "mode", "stage", "next_action")},
             "checks": checks, "pending_decisions": pending, "next_stage": next_stage,
@@ -381,10 +405,18 @@ def task_view(workspace: str | Path, task_id: str) -> dict[str, Any]:
             "sources": sources, "business_system_state": "not_queried"}
 
 
+def task_view(workspace: str | Path, task_id: str) -> dict[str, Any]:
+    from .verification import verify_task
+
+    return verify_task(workspace, task_id).view
+
+
 def context(workspace: str | Path, task_id: str, *, write: bool = False, check: bool = False) -> dict[str, Any]:
-    view = task_view(workspace, task_id)
-    task_dir, _, _, _ = load_task(workspace, task_id)
-    path = safe_path(task_dir / "workflow-state.json")
+    from .verification import verify_task
+
+    verified = verify_task(workspace, task_id)
+    view = verified.view
+    path = safe_path(verified.task_dir / "workflow-state.json")
     matches = False
     if path.is_file():
         try:
