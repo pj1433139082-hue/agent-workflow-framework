@@ -1,0 +1,92 @@
+{
+  "scope": "synthetic controlled case only",
+  "workspace": "<CASE_ROOT>\\synthetic-product-catalog",
+  "task_id": "catalog-start-plan",
+  "obstructions_removed": "Only owned empty test directories were removed; no unknown content.",
+  "fact_operation": {
+    "arguments": [
+      "task-plan",
+      "<CASE_ROOT>\\synthetic-product-catalog",
+      "--task-id",
+      "catalog-start-plan",
+      "--next-action",
+      "Continue only local synthetic planning after recovery.",
+      "--apply"
+    ],
+    "exit_code": 0,
+    "stdout": {
+      "ok": true,
+      "task": {
+        "id": "catalog-start-plan",
+        "workflow": "project-planning",
+        "mode": "assisted",
+        "stage": "ready",
+        "next_action": "Continue only local synthetic planning after recovery."
+      },
+      "applied": true,
+      "completion": {
+        "operation": "completed",
+        "local_record": "incomplete",
+        "repeat_operation": false,
+        "recovery": [
+          "context",
+          "<CASE_ROOT>\\synthetic-product-catalog",
+          "--task-id",
+          "catalog-start-plan",
+          "--write"
+        ]
+      }
+    },
+    "stderr": ""
+  },
+  "document_operation": {
+    "arguments": [
+      "project-docs",
+      "<CASE_ROOT>\\synthetic-product-catalog",
+      "--task-id",
+      "catalog-start-plan",
+      "--with-docs",
+      "architecture",
+      "--with-docs",
+      "summary",
+      "--apply"
+    ],
+    "exit_code": 2,
+    "stdout": {
+      "ok": false,
+      "error": {
+        "code": "invalid_document_target",
+        "message": "A selected document target is not an ordinary file; preserve it and inspect."
+      },
+      "progress": {
+        "created": [
+          "architecture"
+        ],
+        "preserved": [],
+        "pending": [
+          "summary"
+        ]
+      }
+    },
+    "stderr": ""
+  },
+  "facts_sha256_after_operations": "5d9230f92b894d68707bde6124691ae51da4471d1394b94eca2c6c1b687eb9f2",
+  "files_after_operations": {
+    ".agent-workflow.local.json": "970f923213e3fce9026be602bd8ccc740115b76d7f5388c56a8befa3b9b70e76",
+    ".gitignore": "b031ba59688de96ad5d0196dd29f8d6ea1b8faa16c0bdae57f297eb4ace9fd15",
+    "AGENTS.md": "8ce5efba3bb6657a7b9434335bfc1780f1ef859bafbc20a305436ae3b76f3d9e",
+    "CONTEXT.md": "38897765bf25cbb489568ce71cae0169db3858542b0fa8895c4085d60e270029",
+    "project.json": "f19a4dd5488553b282325ba2576810c1906b0c4dd0ea05bbf9e132110b75c546",
+    "README.md": "f61ff501a99b857e1bb7be07f3096c99bb844658489e02409823acfe5d7707f9",
+    "docs/00-入口层/00-项目总览.md": "e3999763f92d02ce16fc6257090b1f84d08a929e9dba0a3e3cbd02f10335e675",
+    "docs/10-流程层/10-项目启动SOP.md": "b38f4157af480c3ceb2198a4467c46e45a11d1f0bb0ab19a45191f1aa7e522ac",
+    "docs/20-规则层/20-项目规则.md": "3321e97870bbf6195adf6175e544cea4fdfefa78a10a3628fe146838084c092f",
+    "docs/30-触发层/30-项目验收.md": "a62eef14fc0764f3e0971c94099fedb448b267a87c8a2762f598cd83c47d9b93",
+    "docs/project/architecture.md": "08e331c1a44fe549d6159c267defa00d101d7416f97e9f9e9114bccb17110cb9",
+    "docs/project/environment.md": "a5116123b9318c0015bd282b0ba012209eaad6b81dec58b938562d07bda373d1",
+    "docs/project/progress.md": "87d12815a39a5612ae76a3bd81d8efaef510d3e31437a191d45d134ea099713c",
+    "tasks/catalog-start-plan/payload.json": "6cf27381b8d593cb9c171d5c224289abfa68b146659d705b2f2130ed09b73fac",
+    "tasks/catalog-start-plan/plan.md": "3332df61e3acad13330bc04b450985b05a104e1270ad550dcd6ee1429ff74698",
+    "tasks/catalog-start-plan/task.json": "5d9230f92b894d68707bde6124691ae51da4471d1394b94eca2c6c1b687eb9f2"
+  }
+}
