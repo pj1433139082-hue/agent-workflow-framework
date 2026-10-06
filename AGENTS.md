@@ -2,6 +2,8 @@
 
 从 [协作总览](docs/00-入口层/00-协作总览.md) 进入，只加载当前任务需要的规则和业务包资料。
 开始新协作或续接任务时，按仓库内 .skillshare/skills/workflow-router/SKILL.md 分流；直接读取该文件，无需全局 Skillshare 安装。
+从全新目录启动项目时使用 .skillshare/skills/project-start/SKILL.md 和公开 start 命令，见 docs/00-入口层/03-一键启动新项目.md；创建后从新项目自己的 AGENTS.md 续接。
+框架已有项目按需补辅助文档使用公开 project-docs；不手工复制模板、重跑 start 或新增任务，详情按 project-start 的按需引用读取。
 真实业务项目与任务工作区放在本框架仓库外。本仓库只收录通用代码、技能、模板、规则和完全虚构的测试资料，不收录真实业务资产。
 full-auto、assisted、manual-review 是智能体协作节奏约定，不是 CLI 权限沙箱；同一任务恢复原档位，任何 --apply 都是调用者明确发起的本地写入。
 任务阶段只表示本地协作进度，不表示订单、库存、支付或外部平台状态；当前版本不连接真实业务系统。v0.1 每个新工作区只含首个任务，流程线性推进，不支持分支、回退或追加任务。
@@ -9,3 +11,5 @@ full-auto、assisted、manual-review 是智能体协作节奏约定，不是 CLI
 只在本仓库与用户明确指定的仓库外临时工作区内修改或验证；真实业务资产保留在其所属项目，不复制旧仓库历史，不擅自扩大同事访问范围。
 遵循使用者当前配置的代理和工具；不得更改系统代理或 VPN，本项目不要求固定代理端口、模型厂商或子智能体型号。
 验证走公开 CLI 和只读 hook，不以私有函数测试代替验收；hook 配置交付不等于客户端已触发，需以受信任客户端的实际证据为准。
+
+维护框架本身时，规格与任务使用当前 origin 对应仓库的 GitHub Issues；配置见 docs/agents/issue-tracker.md，标签见 docs/agents/triage-labels.md。这不是业务任务的新门禁，也不要求新建的业务项目共用框架维护仓库。领域术语使用 CONTEXT.md，系统决策使用 docs/adr/。

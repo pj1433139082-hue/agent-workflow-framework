@@ -1,0 +1,4 @@
+interface:
+  display_name: "新项目启动"
+  short_description: "按通用框架创建新项目骨架，集中澄清需求并留下可续接的任务状态"
+  default_prompt: "使用 $project-start 按通用协作框架创建一个新项目，先集中询问缺少的名称、路径和目标。"

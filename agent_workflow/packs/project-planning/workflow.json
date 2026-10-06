@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "id": "project-planning",
+  "name": "通用新项目启动",
+  "version": "0.1.0",
+  "description": "为任意新项目澄清范围和准备启动方案，不代表业务系统已实现或部署。",
+  "templates": {
+    "payload.json": "{\n  \"project_name\": \"\",\n  \"goal\": \"\",\n  \"users\": \"\",\n  \"in_scope\": \"\",\n  \"out_of_scope\": \"\",\n  \"success_criteria\": \"\"\n}\n",
+    "plan.md": "# 项目启动方案\n\n## 可执行任务\nTODO: 按已澄清范围列出具体任务。\n\n## 技术选择\nTODO: 说明选择与依据。\n\n## 风险\nTODO: 说明风险与应对。\n\n## 验收方法\nTODO: 给出可观察的验收步骤。\n"
+  },
+  "stages": [
+    {
+      "id": "scope",
+      "documents": ["agent_workflow/packs/project-planning/SOP.md"],
+      "checks": [
+        {"id": "project-scope", "kind": "json-fields", "file": "payload.json", "fields": {
+          "project_name": {"type": "string", "nonempty": true},
+          "goal": {"type": "string", "nonempty": true},
+          "users": {"type": "string", "nonempty": true},
+          "in_scope": {"type": "string", "nonempty": true},
+          "out_of_scope": {"type": "string", "nonempty": true},
+          "success_criteria": {"type": "string", "nonempty": true}
+        }}
+      ]
+    },
+    {
+      "id": "plan",
+      "documents": ["agent_workflow/packs/project-planning/SOP.md"],
+      "checks": [
+        {"id": "project-plan", "kind": "file-content", "file": "plan.md", "contains": ["# "], "sections": ["可执行任务", "技术选择", "风险", "验收方法"]},
+        {"id": "plan-acceptance", "kind": "decision", "question": "是否接受本次项目范围、启动方案和验收口径？接受只针对这份方案，不代表项目已实现或批准外部操作。", "recommendation": "集中核对 payload.json 与 plan.md；方案符合需求时选 accept，需要调整选 revise。", "answers": ["accept", "revise"], "required_answer": "accept"}
+      ]
+    },
+    {"id": "ready", "documents": ["agent_workflow/packs/project-planning/SOP.md"], "checks": []}
+  ]
+}
