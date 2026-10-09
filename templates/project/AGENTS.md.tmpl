@@ -8,6 +8,8 @@
 
 按当前任务读取已存在的辅助材料：运行环境问题读 docs/project/environment.md；模块或接口变更读 architecture.md；交接和里程碑读 progress.md / summary.md；结果冲突读 results.md。这些文件按需生成，不要求补齐全套；状态仍由任务事实查询，空总结不代表完成。
 
+可运行项目的环境要求、隔离方式和启动/测试入口写入 tasks/{{TASK_ID}}/plan.md；实际配置和检查结果按需写入 docs/project/environment.md，区分通过、失败、未执行和不适用。环境工作先读框架 docs/20-规则层/21-项目环境约定.md。本项目不继承框架工具的语言或版本要求；调用工具核对其自身兼容声明，业务程序使用本项目自己的入口。纯文档项目不强制配置运行时，未定项不猜，环境选择并入原方案确认。
+
 后来需要缺失的辅助文档时，从已定位的框架调用 project-docs <本项目绝对路径> --task-id {{TASK_ID}} --with-docs <需要的类别>，先预览，按已选档位与交办范围加 --apply。既有文件保留；部分失败查 progress 后只补缺失，不手工复制模板、不重跑 start、不改任务或索引。具体选择与恢复读框架 project-start 技能的 references/project-documents.md。
 
 用户已经明确说明的事实先记录到 payload.json，只对仍缺的业务信息集中一轮询问，展示推荐与备选；用户实际回答后才写决定，不重复问已给出的使用者、范围或排除项。编辑事实后用 context --write 重建索引，再查 status。默认 assisted 连续做已交办本地工作，不逐条索取确认。只读定位不需要用户重新授权。

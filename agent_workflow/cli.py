@@ -66,7 +66,8 @@ def main(argv: list[str] | None = None) -> int:
             if sys.version_info < (3, 11):
                 raise engine.WorkflowError("python_version", "The collaboration tool requires Python >=3.11; business runtimes are independent.")
             result = {"version": __version__, "python": sys.version.split()[0], "framework_root": str(engine.ROOT),
-                      "business_runtime_constraint": None, "packs": engine.packs(), "external_integrations": []}
+                      "runtime_scope": "framework_tools_only", "business_runtime_constraint": None,
+                      "business_runtime_checked": False, "packs": engine.packs(), "external_integrations": []}
         elif name == "packs":
             result = {"packs": engine.packs()}
         elif name == "status":

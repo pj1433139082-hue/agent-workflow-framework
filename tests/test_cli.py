@@ -126,6 +126,12 @@ class CliContractTests(unittest.TestCase):
             args.append("--apply")
         return self.cli(*args)
 
+    def test_doctor_checks_framework_tools_not_the_business_runtime(self) -> None:
+        diagnostics = self.result(self.cli("doctor"), ok=True)
+        self.assertEqual(diagnostics["runtime_scope"], "framework_tools_only")
+        self.assertIsNone(diagnostics["business_runtime_constraint"])
+        self.assertFalse(diagnostics["business_runtime_checked"])
+
     def test_preview_and_pack_discovery_do_not_require_real_business_data(self) -> None:
         self.result(self.cli("doctor"), ok=True)
         packs = self.result(self.cli("packs"), ok=True)

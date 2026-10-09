@@ -13,9 +13,13 @@ class LocateError(ValueError):
     pass
 
 
+class ArgumentsError(ValueError):
+    pass
+
+
 class Parser(argparse.ArgumentParser):
     def error(self, message: str) -> NoReturn:
-        raise LocateError("Invalid helper arguments; use --help.")
+        raise ArgumentsError("Invalid helper arguments; use --help.")
 
 
 def read_location(path: Path) -> str:
@@ -68,7 +72,9 @@ def main() -> int:
     try:
         options = parser.parse_args()
         if sys.version_info < (3, 11):
-            raise LocateError("This helper requires Python >=3.11; business runtimes are independent.")
+            print(json.dumps({"ok": False, "error": {"code": "python_version",
+                              "message": "This helper requires Python >=3.11; business runtimes are independent. No project was created."}}))
+            return 2
         root = locate(options.framework)
         command = options.command
         if command[:1] == ["--"]:
@@ -76,11 +82,20 @@ def main() -> int:
         if options.locate or not command:
             print(json.dumps({"ok": True, "framework_root": str(root)}, ensure_ascii=True))
             return 0
-        return subprocess.run([sys.executable, "-m", "agent_workflow", *command], cwd=root, check=False).returncode
+    except ArgumentsError:
+        print(json.dumps({"ok": False, "error": {"code": "helper_arguments_error",
+                          "message": "Invalid helper arguments; use --help. No project was created."}}))
+        return 2
     except (LocateError, OSError, ValueError, TypeError):
         # Do not print caller arguments or metadata, which may contain credentials.
         print(json.dumps({"ok": False, "error": {"code": "framework_location_error",
-                                                   "message": "Local framework unavailable or arguments invalid; specify its checkout with --framework. No project was created."}}))
+                                                   "message": "Local framework unavailable; check its location or metadata and specify --framework. No project was created."}}))
+        return 2
+    try:
+        return subprocess.run([sys.executable, "-m", "agent_workflow", *command], cwd=root, check=False).returncode
+    except OSError:
+        print(json.dumps({"ok": False, "error": {"code": "framework_invocation_error",
+                          "message": "Could not run the located framework command. Check the tool executable and access; inspect task status before retrying an operation."}}))
         return 2
 
 

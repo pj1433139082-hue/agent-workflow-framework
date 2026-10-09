@@ -85,6 +85,33 @@ class ProjectStartCliTests(unittest.TestCase):
             args.append("--apply")
         return self.result(self.cli(*args), ok=True)
 
+    def test_start_reports_business_environment_work_as_not_performed(self) -> None:
+        for with_environment in (False, True):
+            with self.subTest(with_environment=with_environment):
+                workspace = self.base / ("software" if with_environment else "documents")
+                args: list[object] = ["start", workspace, "--project-id", "environment-sample",
+                                      "--name", "合成环境项目", "--task-id", "launch"]
+                if with_environment:
+                    args += ["--brief", "合成 Java 业务项目，框架 Python 不是业务运行时。",
+                             "--with-docs", "environment"]
+                expected = {
+                    "policy": "per_project",
+                    "requirements_file": "tasks/launch/plan.md",
+                    "verification_file": "docs/project/environment.md" if with_environment else None,
+                    "configured_by_start": False,
+                    "verified_by_start": False,
+                }
+                preview = self.result(self.cli(*args), ok=True)
+                self.assertEqual(preview["business_environment"], expected)
+                self.assertFalse(workspace.exists())
+                created = self.result(self.cli(*args, "--apply"), ok=True)
+                self.assertEqual(created["business_environment"], expected)
+                self.assertTrue((workspace / "tasks/launch/plan.md").is_file())
+                self.assertEqual((workspace / "docs/project/environment.md").exists(), with_environment)
+                self.assertFalse((workspace / ".venv").exists())
+                self.assertFalse((workspace / ".venv-311").exists())
+                self.assertFalse((workspace / "package.json").exists())
+
     def test_preview_is_read_only_and_apply_creates_linked_project_workspace(self) -> None:
         workspace = self.base / "new-project"
         name = "合成北辰项目-7391"
@@ -214,7 +241,7 @@ class ProjectStartCliTests(unittest.TestCase):
         plan_path.write_text(
             "# 项目启动方案\n\n"
             "## 可执行任务\n先完成入口和本地状态检查。\n\n"
-            "## 技术选择\n实现前根据已确认范围选择现有技术。\n\n"
+            "## 技术选择\n合成业务项目选择 Java 17，与框架 Python 分开；安装与运行尚未核验。\n\n"
             "## 风险\n当前范围仍限于本地规划，不包含外部操作。\n\n"
             "## 验收方法\n通过 status 检查范围和方案，再由使用者确认方案。\n",
             encoding="utf-8",
