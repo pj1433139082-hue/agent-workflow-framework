@@ -70,7 +70,7 @@ class ColdStartAcceptanceTests(unittest.TestCase):
         self.command(*start)
         self.assertFalse(self.workspace.exists())
         self.command(*start, "--apply")
-        self.assertEqual(len(self.hashes()), 14)
+        self.assertEqual(len(self.hashes()), 16)
         self.assertFalse((self.workspace / "docs/project").exists())
         task = self.workspace / "tasks" / self.task_id
         snapshot = task / "workflow-state.json"

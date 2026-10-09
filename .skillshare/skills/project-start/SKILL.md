@@ -15,6 +15,8 @@ description: 用通用智能体协作框架启动新项目，生成入口与可�
 
 集中核对项目名称、新目录和一句目标。用户已经给出的不再问；目标允许先留空进入澄清。未给项目 ID 时建议一个安全英文 slug；目录必须在框架外且尚不存在。已有目录只报告并建议新位置，不把“开新项目”理解为覆盖旧项目。当前项目尚无入口时不要要求它先有 AGENTS.md。
 
+任务落点同轮核对，不预设默认变体：用户已说明规格与任务记在 GitHub Issues 还是仓库内本地 Markdown 时传 `--tracker github|local`；未说明就和其他缺项一起问一次，不另设确认轮。用户不选就留未定——此时不生成 `docs/agents/issue-tracker.md`，回执的 issue_tracker 如实报告未选定，之后可用 project-docs 补建，不手工复制模板。`docs/agents/triage-labels.md` 与 `domain.md` 与落点无关，始终生成。
+
 默认轻量启动，不要求七张项目卡。需要运行环境、架构、长期进展、总结或结果口径时，读 [references/project-documents.md](references/project-documents.md)，按真实需要选择辅助模板，和其他缺项同轮说明。为框架已有项目补文档走该引用中的 project-docs；历史项目接入/归档仍先只读盘点，不调用 start 覆盖。
 
 档位只选一次：assisted（推荐）连续处理已交办本地工作，只集中询问新增业务决定；full-auto 不猜业务答案；manual-review 在实质写入前停下。用户已选档或采用已展示推荐就沿用；不把 --apply 变成每条命令都问一次。
@@ -32,7 +34,7 @@ description: 用通用智能体协作框架启动新项目，生成入口与可�
 通过本技能脚本转发命令（每个参数独立传递，不拼接 shell；框架路径可用 `--framework` 显式指定）：
 
 ```text
-python <本技能目录>/scripts/start_project.py --framework <框架目录> -- start <新目录> --project-id <ID> --name <名称> --brief <用户原始目标> --mode assisted
+python <本技能目录>/scripts/start_project.py --framework <框架目录> -- start <新目录> --project-id <ID> --name <名称> --brief <用户原始目标> --mode assisted [--tracker <github|local>]
 ```
 
 检查默认预览的目录和文件清单。明确交办创建且范围齐全时，同一命令加 --apply 即可执行；manual-review 则先按所选节奏暂停。调用仅创建本地项目骨架，不初始化 Git、不建远端、不上传或部署。doctor 只检查框架工具；start 的 business_environment 回执明确本次未配置、未验证业务环境，不能把模板或规划 ready 当作可运行证明。
@@ -45,6 +47,6 @@ python <本技能目录>/scripts/start_project.py --framework <框架目录> -- 
 
 后续在新项目里从 AGENTS.md 和当前任务 context/status 接管，恢复 task.json 中的档位；每个任务的 workflow-state.json 是生成索引，不手改它或从聊天猜阶段。框架移动后修正本机定位，不重建或覆盖业务事实。
 
-已有项目后来需要辅助文档时，沿用已定位的工作区、真实 task-id 和档位，按上述引用调用公开 project-docs 预览/补建；不手工复制模板、不重跑 start、不另建任务。选择与其他实质缺项同轮说明，不逐张问确认。该命令不改变任务事实或索引；部分失败按 progress 只补缺失，与事实已提交后的索引修复分开处理。
+已有项目后来需要辅助文档时，沿用已定位的工作区、真实 task-id 和档位，按上述引用调用公开 project-docs 预览/补建；不手工复制模板、不重跑 start、不另建任务。启动时未选定 tracker 的项目，用同一命令加 `--tracker github|local` 补建 `docs/agents/issue-tracker.md`；已存在时保留原文件，不把一种变体改写成另一种。选择与其他实质缺项同轮说明，不逐张问确认。该命令不改变任务事实或索引；部分失败按 progress 只补缺失，与事实已提交后的索引修复分开处理。
 
 创建若返回事实已完成但索引不完整，只执行返回的 context 修复，不重复 start。结束时给出项目目录、入口、实际阶段、已验证/未验证和下一步。后续外部操作须属于用户明确交办的具体目标；原请求已明确的沿用，新增或不明确的范围需澄清。本技能不直接部署，也不把自动档位或方案接受写成永久许可。

@@ -388,7 +388,7 @@ class ProjectDocumentCompletionTests(unittest.TestCase):
         help_result = subprocess.run([sys.executable, "-m", "agent_workflow", "project-docs", "--help"],
                                      cwd=ROOT, capture_output=True, text=True, check=False, timeout=15)
         self.assertEqual(help_result.returncode, 0, help_result.stderr)
-        for option in ("--task-id", "--with-docs", "--apply", *DOCUMENTS):
+        for option in ("--task-id", "--with-docs", "--tracker", "--apply", "github", "local", *DOCUMENTS):
             self.assertIn(option, help_result.stdout)
         wrapped = subprocess.run([sys.executable, str(ROOT / ".skillshare/skills/project-start/scripts/start_project.py"),
                                   "--framework", str(ROOT), "--", *(str(arg) for arg in self.args("progress"))],

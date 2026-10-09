@@ -18,6 +18,8 @@
 
 向 start 添加可重复参数 `--with-docs environment|architecture|progress|summary|results`，例如 `--with-docs environment --with-docs progress`。所选文档生成在 docs/project/，使用同一模板实例化和路径保护；默认预览不写入，应用只创建选择的辅助文件。重复选择会去重，仍使用原任务 ID、档位和 project-planning 流程。
 
+任务落点不是 `--with-docs` 的取值，而是独立参数 `--tracker github|local`：`github` 生成 GitHub Issues 约定，`local` 生成仓库内 `.scratch/` 的本地 Markdown 约定，两者都写到 `docs/agents/issue-tracker.md`。省略时该文件不生成，回执的 issue_tracker 报告未选定；不预设默认变体，也不把两种约定混在一份文件里。`docs/agents/triage-labels.md` 与 `domain.md` 属必选文件，与落点无关。
+
 选择由已说明的项目需求决定，并与名称、目录和目标在同轮说明；没有需求则使用最小默认。不为每张辅助卡另设确认轮。
 
 环境工作先读已定位框架的 docs/20-规则层/21-项目环境约定.md。可运行项目的版本约束、隔离、锁定及启动/测试入口在 plan.md 中说明，尚未确定的项不猜。environment.md 记录实际检查命令、版本/位置、时间和结果，逐项区分通过、失败、未执行、不适用；不复制选型事实或新建状态 JSON。框架工具与业务运行时分别定位；框架 doctor、start 和补建模板都不安装或验证业务依赖，配置/运行检查留给实际交办的实现任务，不作为规划 ready 的新门禁。
@@ -25,10 +27,10 @@
 项目创建之后按需补文档时，使用同一技能脚本转发公开命令（工作区与 task-id 必须明确；以下是待替换值）：
 
 ```text
-python <本技能目录>/scripts/start_project.py --framework <框架目录> -- project-docs <已有项目绝对路径> --task-id <实际ID> --with-docs environment --with-docs progress
+python <本技能目录>/scripts/start_project.py --framework <框架目录> -- project-docs <已有项目绝对路径> --task-id <实际ID> --with-docs environment --with-docs progress [--tracker <github|local>]
 ```
 
-默认预览零写入。顶层 progress 的 pending 是拟创建项，preserved 是已存在的普通文件；在当前交办范围和所选档位允许时加 --apply，只补缺失项。重复选择去重，应用重新核验任务、模板和落点，使用与 start 相同的渲染规则及真实任务 ID。不得手工复制模板、重跑 start 或为了补文档新建任务；无有效框架身份的历史项目不会自动接入。
+默认预览零写入。顶层 progress 的 pending 是拟创建项，preserved 是已存在的普通文件；在当前交办范围和所选档位允许时加 --apply，只补缺失项。`--with-docs` 与 `--tracker` 至少提供一项，两者都为空按参数错误拒绝、零写入；补建的 tracker 文件在 progress 里记作 `issue-tracker`，已存在时记 preserved，不改写成另一种变体。重复选择去重，应用重新核验任务、模板和落点，使用与 start 相同的渲染规则及真实任务 ID。不得手工复制模板、重跑 start 或为了补文档新建任务；无有效框架身份的历史项目不会自动接入。
 
 既有普通文件逐字节保留，不覆盖或合并；预览后其他进程先创建同名普通文件也保留。链接、Windows junction/reparse、目录或其他类型冲突都拒绝，不当成“已存在，跳过”。完整文件以同目录暂存和独占硬链接发布；文件系统不支持硬链接时报告失败，不回退成覆盖。仅保证单文件完整发布，不是多文档事务或对抗恶意文件系统替换的隔离。
 

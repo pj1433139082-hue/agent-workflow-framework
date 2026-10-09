@@ -34,13 +34,17 @@ def main(argv: list[str] | None = None) -> int:
     start.add_argument("--task-id", default="kickoff")
     start.add_argument("--mode", default="assisted", choices=sorted(engine.MODES))
     start.add_argument("--with-docs", action="append", choices=sorted(project_start.OPTIONAL_DOCUMENTS), default=[])
+    start.add_argument("--tracker", choices=sorted(project_start.TRACKER_TEMPLATES), default=None,
+                       help="Issue tracker for the new project. Omitting it leaves the tracker undecided and does not create docs/agents/issue-tracker.md.")
     start.add_argument("--apply", action="store_true")
     documents = commands.add_parser("project-docs", help="Preview or create only missing optional project documents.",
                                     description="Existing valid workspace/task only. Default is read-only; existing ordinary files are never overwritten. Task facts and index remain unchanged.")
     documents.add_argument("workspace", help="Existing framework-created workspace outside this checkout.")
     documents.add_argument("--task-id", required=True, help="Explicit existing task ID, not a path.")
-    documents.add_argument("--with-docs", action="append", required=True, choices=sorted(project_start.OPTIONAL_DOCUMENTS),
+    documents.add_argument("--with-docs", action="append", default=[], choices=sorted(project_start.OPTIONAL_DOCUMENTS),
                            help="Repeat to select documents; duplicate selections are deduplicated.")
+    documents.add_argument("--tracker", choices=sorted(project_start.TRACKER_TEMPLATES), default=None,
+                           help="Create only a missing docs/agents/issue-tracker.md; at least one of --with-docs or --tracker is required.")
     documents.add_argument("--apply", action="store_true", help="Create only missing documents; report created/preserved/pending progress.")
     for name in ("status", "context", "advance", "decision", "task-plan"):
         command = commands.add_parser(name)
@@ -62,6 +66,9 @@ def main(argv: list[str] | None = None) -> int:
     try:
         args = vars(parser.parse_args(argv))
         name = args.pop("command")
+        if name == "project-docs" and not args["with_docs"] and not args["tracker"]:
+            # An empty selection stays an argument error at the CLI boundary.
+            parser.error("Select at least one optional document or an issue tracker.")
         if name == "doctor":
             if sys.version_info < (3, 11):
                 raise engine.WorkflowError("python_version", "The collaboration tool requires Python >=3.11; business runtimes are independent.")

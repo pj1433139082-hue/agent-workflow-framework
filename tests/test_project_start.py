@@ -21,6 +21,8 @@ PROJECT_FILES = {
     "docs/10-流程层/10-项目启动SOP.md",
     "docs/20-规则层/20-项目规则.md",
     "docs/30-触发层/30-项目验收.md",
+    "docs/agents/triage-labels.md",
+    "docs/agents/domain.md",
 }
 TASK_FILES = {
     "task.json",
@@ -120,7 +122,7 @@ class ProjectStartCliTests(unittest.TestCase):
                 actual = {path.relative_to(workspace).as_posix()
                           for path in workspace.rglob("*") if path.is_file()}
                 self.assertEqual(actual, expected)
-                self.assertEqual(len(actual), 14)
+                self.assertEqual(len(actual), 16)
                 state = self.status(workspace, "launch")
                 self.assertEqual((state["task"]["mode"], state["task"]["stage"]), (mode, "scope"))
                 self.assertEqual(state["business_system_state"], "not_queried")
@@ -473,6 +475,44 @@ class ProjectStartCliTests(unittest.TestCase):
         task_id_result = self.result(self.cli("start", invalid_task, "--project-id", "safe-project",
                                               "--name", "合成项目", "--task-id", "../escape-task", "--apply"), ok=False)
         self.assertFalse(invalid_task.exists(), task_id_result)
+
+    def test_issue_tracker_is_chosen_at_start_and_never_preset(self) -> None:
+        undecided = self.base / "tracker-undecided"
+        receipt = self.start(undecided, project_id="tracker-undecided", apply=True)
+        self.assertEqual(receipt["issue_tracker"], {"selected": None, "file": None, "undecided": True})
+        self.assertFalse((undecided / "docs/agents/issue-tracker.md").exists(),
+                         "an unchosen tracker must not be preset by a default variant")
+        for relative in ("docs/agents/triage-labels.md", "docs/agents/domain.md"):
+            self.assertTrue((undecided / relative).is_file(), relative)
+        self.assertIn("docs/agents/", (undecided / "AGENTS.md").read_text(encoding="utf-8"))
+
+        contents: dict[str, str] = {}
+        for tracker in ("github", "local"):
+            with self.subTest(tracker=tracker):
+                workspace = self.base / f"tracker-{tracker}"
+                created = self.result(self.cli(
+                    "start", workspace, "--project-id", f"tracker-{tracker}", "--name", "合成项目",
+                    "--task-id", "kickoff", "--tracker", tracker, "--apply"), ok=True)
+                self.assertEqual(created["issue_tracker"],
+                                 {"selected": tracker, "file": "docs/agents/issue-tracker.md",
+                                  "undecided": False})
+                path = workspace / "docs/agents/issue-tracker.md"
+                self.assertTrue(path.is_file())
+                contents[tracker] = path.read_text(encoding="utf-8")
+                actual = {item.relative_to(workspace).as_posix()
+                          for item in workspace.rglob("*") if item.is_file()}
+                self.assertEqual(actual, PROJECT_FILES | {"docs/agents/issue-tracker.md", "project.json"}
+                                 | {f"tasks/kickoff/{item}" for item in TASK_FILES})
+        self.assertIn("gh issue", contents["github"])
+        self.assertIn(".scratch/", contents["local"])
+        self.assertNotIn(".scratch/", contents["github"], "variants must not be mixed")
+        self.assertNotIn("gh issue", contents["local"], "variants must not be mixed")
+
+        invalid = self.base / "tracker-invalid"
+        rejected = self.result(self.cli("start", invalid, "--project-id", "tracker-invalid",
+                                        "--name", "合成项目", "--tracker", "jira", "--apply"), ok=False)
+        self.assertEqual(rejected["error"]["code"], "invalid_arguments")
+        self.assertFalse(invalid.exists())
 
     def test_credentials_in_name_or_brief_are_rejected_without_echo(self) -> None:
         secret = "ghp_" + "A" * 36

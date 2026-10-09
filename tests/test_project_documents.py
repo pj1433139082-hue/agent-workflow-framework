@@ -21,9 +21,12 @@ DEFAULT_PROJECT_FILES = {
     "docs/10-流程层/10-项目启动SOP.md",
     "docs/20-规则层/20-项目规则.md",
     "docs/30-触发层/30-项目验收.md",
+    "docs/agents/triage-labels.md",
+    "docs/agents/domain.md",
 }
 TASK_FILES = {"task.json", "payload.json", "plan.md", "workflow-state.json"}
 OPTIONAL_DOCUMENTS = {"environment", "architecture", "progress", "summary", "results"}
+TRACKER_FILE = "docs/agents/issue-tracker.md"
 
 
 class ProjectDocumentCliTests(unittest.TestCase):
@@ -96,7 +99,7 @@ class ProjectDocumentCliTests(unittest.TestCase):
         )
         self.assertTrue(checked["snapshot_matches"])
 
-    def test_default_start_keeps_the_minimal_fourteen_file_workspace(self) -> None:
+    def test_default_start_keeps_the_minimal_sixteen_file_workspace(self) -> None:
         workspace = self.base / "minimal-project"
         args = self.start_args(workspace)
 
@@ -116,7 +119,7 @@ class ProjectDocumentCliTests(unittest.TestCase):
             if path.is_file()
         }
         self.assertEqual(actual_files, expected_files)
-        self.assertEqual(len(actual_files), 14)
+        self.assertEqual(len(actual_files), 16)
         self.assertFalse((workspace / "docs/project").exists())
         self.assert_task_and_snapshot(workspace, "kickoff", "manual-review")
 
@@ -202,6 +205,52 @@ class ProjectDocumentCliTests(unittest.TestCase):
         table_lines = [line for line in document.splitlines() if line.lstrip().startswith("|")]
         self.assertTrue(table_lines, "document should expose an empty table template")
         self.assertEqual(len(table_lines), 2, "template tables must not contain prefilled data rows")
+
+    def test_project_docs_creates_a_missing_tracker_and_preserves_an_existing_one(self) -> None:
+        workspace = self.base / "tracker-project"
+        task_id = "tracker-task"
+        self.result(self.cli(*self.start_args(workspace, task_id=task_id), "--apply"), ok=True)
+        tracker = workspace / TRACKER_FILE
+        self.assertFalse(tracker.exists(), "start without --tracker leaves the tracker undecided")
+
+        args = ["project-docs", workspace, "--task-id", task_id, "--tracker", "local"]
+        preview = self.result(self.cli(*args), ok=True)
+        self.assertFalse(preview["applied"])
+        self.assertEqual(preview["issue_tracker"], {"selected": "local", "file": TRACKER_FILE})
+        self.assertEqual(preview["progress"],
+                         {"created": [], "preserved": [], "pending": ["issue-tracker"]})
+        self.assertFalse(tracker.exists(), "tracker preview must not write files")
+
+        created = self.result(self.cli(*args, "--apply"), ok=True)
+        self.assertEqual(created["progress"],
+                         {"created": ["issue-tracker"], "preserved": [], "pending": []})
+        self.assertIn(".scratch/", tracker.read_text(encoding="utf-8"))
+
+        again = self.result(self.cli(*args, "--apply"), ok=True)
+        self.assertEqual(again["progress"],
+                         {"created": [], "preserved": ["issue-tracker"], "pending": []})
+
+        before = tracker.read_bytes()
+        switched = self.result(self.cli("project-docs", workspace, "--task-id", task_id,
+                                        "--tracker", "github", "--apply"), ok=True)
+        self.assertEqual(switched["progress"],
+                         {"created": [], "preserved": ["issue-tracker"], "pending": []})
+        self.assertEqual(tracker.read_bytes(), before, "an existing tracker is never rewritten")
+
+        with_optional = self.result(self.cli(
+            "project-docs", workspace, "--task-id", task_id, "--with-docs", "summary",
+            "--tracker", "github", "--apply"), ok=True)
+        self.assertEqual(with_optional["progress"],
+                         {"created": ["summary"], "preserved": ["issue-tracker"], "pending": []})
+        self.assertEqual(with_optional["document_files"], {"summary": "docs/project/summary.md"})
+
+    def test_project_docs_requires_a_document_or_tracker_selection(self) -> None:
+        workspace = self.base / "empty-selection"
+        self.result(self.cli(*self.start_args(workspace), "--apply"), ok=True)
+        # An empty selection stays an argument error at the CLI boundary, not a local fact problem.
+        failure = self.result(self.cli("project-docs", workspace, "--task-id", "kickoff", "--apply"),
+                              ok=False)
+        self.assertEqual(failure["error"]["code"], "invalid_arguments")
 
     def test_invalid_option_and_existing_target_preserve_local_files(self) -> None:
         invalid_workspace = self.base / "invalid-option-project"

@@ -1,0 +1,13 @@
+# 项目任务标签
+
+| 规范角色 | 标签 | 含义 |
+| --- | --- | --- |
+| needs-triage | needs-triage | 尚待评估 |
+| needs-info | needs-info | 等待缺失信息 |
+| ready-for-agent | ready-for-agent | 规格完整，可按任务依赖实施 |
+| ready-for-human | ready-for-human | 需要人员处理的事项 |
+| wontfix | wontfix | 明确不实施 |
+
+标签只描述任务流转，不是业务权限，也不是永久操作许可。ready-for-agent 不表示前置依赖已经完成；开始前仍核对 Blocked by。
+
+状态写在哪里由本项目的 `issue-tracker.md` 决定。该文件不存在时先选定 tracker，不要另建第二套标签词汇或第二处状态记录。只在实际需要时检查或创建标签，不为使用公开 CLI 强制初始化全部标签。
