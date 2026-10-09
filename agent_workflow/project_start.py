@@ -59,4 +59,15 @@ def start(workspace: str | Path, project_id: str, name: str, brief: str = "",
                "out_of_scope": "", "success_criteria": ""}
     result = engine.new(workspace, project_id, "project-planning", task_id, mode, apply=apply,
                         root_files=files, template_overrides={"payload.json": engine.encode(payload)})
-    return {**result, "entry": "AGENTS.md", "scope": "project planning only; no implementation or external operations"}
+    return {
+        **result,
+        "entry": "AGENTS.md",
+        "scope": "project planning only; no implementation or external operations",
+        "business_environment": {
+            "policy": "per_project",
+            "requirements_file": f"tasks/{task_id}/plan.md",
+            "verification_file": OPTIONAL_DOCUMENTS["environment"] if "environment" in documents else None,
+            "configured_by_start": False,
+            "verified_by_start": False,
+        },
+    }

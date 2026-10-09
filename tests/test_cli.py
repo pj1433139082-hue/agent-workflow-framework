@@ -126,6 +126,12 @@ class CliContractTests(unittest.TestCase):
             args.append("--apply")
         return self.cli(*args)
 
+    def test_doctor_checks_framework_tools_not_the_business_runtime(self) -> None:
+        diagnostics = self.result(self.cli("doctor"), ok=True)
+        self.assertEqual(diagnostics["runtime_scope"], "framework_tools_only")
+        self.assertIsNone(diagnostics["business_runtime_constraint"])
+        self.assertFalse(diagnostics["business_runtime_checked"])
+
     def test_preview_and_pack_discovery_do_not_require_real_business_data(self) -> None:
         self.result(self.cli("doctor"), ok=True)
         packs = self.result(self.cli("packs"), ok=True)
@@ -196,6 +202,76 @@ class CliContractTests(unittest.TestCase):
         self.assertEqual(complete["task"]["stage"], "complete")
         self.assertIsNone(complete["next_stage"])
         self.assertFalse(complete["can_advance"])
+
+    def test_acceptance_flows_start_empty_and_preserve_facts_in_each_preview(self) -> None:
+        cases = (
+            ("catalog-demo", "ecommerce-catalog", "catalog-demo-001", "collect", "review", "ready",
+             {"sku": "SYN-007", "title": "虚构验收商品", "price": 19.9,
+              "currency": "CNY", "synthetic": True},
+             "review.md", "# 商品资料审核\n\n## 检查结论\n合成字段符合演示规则；不代表上架。\n"),
+            ("document-demo", "document-delivery", "document-demo-001", "draft", "validate", "complete",
+             {"audience": "虚构验收读者", "purpose": "核对本地演示流程", "synthetic": True},
+             "draft.md", "# 虚构草稿\n\n仅供本地验收。\n"),
+        )
+        for project_id, workflow, task_id, initial, review, terminal, payload, evidence_file, evidence in cases:
+            with self.subTest(workflow=workflow):
+                workspace = self.base / project_id
+                self.create(workflow, workspace=workspace, task_id=task_id, project_id=project_id,
+                            apply=False)
+                self.assertFalse(workspace.exists())
+                self.create(workflow, workspace=workspace, task_id=task_id, project_id=project_id)
+                before = {p.relative_to(workspace): p.read_bytes()
+                          for p in workspace.rglob("*") if p.is_file()}
+                empty = self.status(workspace=workspace, task_id=task_id)
+                self.assertEqual(empty["task"]["stage"], initial)
+                self.assertFalse(empty["can_advance"])
+                self.assertTrue(any(not item["passed"] for item in empty["checks"]))
+                self.result(self.advance(workspace=workspace, task_id=task_id, apply=False), ok=False)
+                self.assertEqual({p.relative_to(workspace): p.read_bytes()
+                                  for p in workspace.rglob("*") if p.is_file()}, before)
+
+                self.write_json(self.task_file("payload.json", workspace=workspace, task_id=task_id), payload)
+                self.task_file(evidence_file, workspace=workspace, task_id=task_id).write_text(
+                    evidence, encoding="utf-8")
+                current = self.status(workspace=workspace, task_id=task_id)
+                self.assertTrue(current["can_advance"])
+                facts = self.task_file("task.json", workspace=workspace, task_id=task_id)
+                unchanged = facts.read_bytes()
+                self.result(self.cli("context", workspace, "--task-id", task_id, "--check"), ok=False)
+                self.result(self.cli("context", workspace, "--task-id", task_id, "--write"), ok=True)
+                self.assertEqual(facts.read_bytes(), unchanged)
+                before = {p.relative_to(workspace): p.read_bytes()
+                          for p in workspace.rglob("*") if p.is_file()}
+                preview = self.result(self.advance(workspace=workspace, task_id=task_id, apply=False), ok=True)
+                self.assertEqual((preview["from_stage"], preview["to_stage"], preview["applied"]),
+                                 (initial, review, False))
+                self.assertEqual({p.relative_to(workspace): p.read_bytes()
+                                  for p in workspace.rglob("*") if p.is_file()}, before)
+                self.result(self.advance(workspace=workspace, task_id=task_id), ok=True)
+                self.assertEqual(self.status(workspace=workspace, task_id=task_id)["task"]["stage"], review)
+                if workflow == "document-delivery":
+                    self.task_file("final.md", workspace=workspace, task_id=task_id).write_text(
+                        "# 虚构定稿\n\n已核对本地合成用途；未向外部发送。\n", encoding="utf-8")
+                self.assertFalse(self.status(workspace=workspace, task_id=task_id)["can_advance"])
+                # This answer is only for the synthetic evidence checked above, never a real user's decision.
+                self.result(self.decision("accept", workspace=workspace, task_id=task_id), ok=True)
+                before = {p.relative_to(workspace): p.read_bytes()
+                          for p in workspace.rglob("*") if p.is_file()}
+                final_preview = self.result(
+                    self.advance(workspace=workspace, task_id=task_id, apply=False), ok=True)
+                self.assertEqual((final_preview["from_stage"], final_preview["to_stage"]), (review, terminal))
+                self.assertEqual({p.relative_to(workspace): p.read_bytes()
+                                  for p in workspace.rglob("*") if p.is_file()}, before)
+                self.result(self.advance(workspace=workspace, task_id=task_id), ok=True)
+                final = self.status(workspace=workspace, task_id=task_id)
+                self.assertEqual(final["task"]["stage"], terminal)
+                self.assertTrue(final["evidence_valid"])
+                self.assertTrue(final["completed_locally"])
+                self.assertEqual(final["business_system_state"], "not_queried")
+                unchanged = facts.read_bytes()
+                self.result(self.advance(workspace=workspace, task_id=task_id), ok=False)
+                self.assertEqual(facts.read_bytes(), unchanged)
+
     def test_arbitrary_third_pack_uses_its_own_stage_ids(self) -> None:
         runtime = self.runtime_copy()
         pack_id = "synthetic-arbitrary"
@@ -359,6 +435,18 @@ class CliContractTests(unittest.TestCase):
         self.assertEqual(snapshot.read_bytes(), damaged, "read-only context must not repair the snapshot")
         self.result(self.cli("context", self.workspace, "--task-id", "task", "--write"), ok=True)
         self.result(self.cli("context", self.workspace, "--task-id", "task", "--check"), ok=True)
+
+        facts_before = {p.relative_to(self.workspace): p.read_bytes()
+                        for p in self.workspace.rglob("*")
+                        if p.is_file() and p != snapshot}
+        snapshot.unlink()  # Only this test-owned generated index; original facts remain in place.
+        self.result(self.cli("context", self.workspace, "--task-id", "task", "--check"), ok=False)
+        self.assertFalse(snapshot.exists(), "read-only checking must not create a missing index")
+        self.result(self.cli("context", self.workspace, "--task-id", "task", "--write"), ok=True)
+        self.result(self.cli("context", self.workspace, "--task-id", "task", "--check"), ok=True)
+        self.assertEqual({p.relative_to(self.workspace): p.read_bytes()
+                          for p in self.workspace.rglob("*")
+                          if p.is_file() and p != snapshot}, facts_before)
 
         self.valid_catalog()
         changed = snapshot.read_bytes()
