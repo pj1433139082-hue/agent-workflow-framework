@@ -42,6 +42,16 @@ def select_tracker(tracker: str | None) -> str | None:
     return tracker
 
 
+def tracker_render(chosen: str | None) -> tuple[str | None, dict[str, str]]:
+    """Return the generated relative and template aliases for a validated tracker choice.
+
+    Both start and project-docs place the result; only here knows the file/template wiring.
+    """
+    if not chosen:
+        return None, {}
+    return TRACKER_FILE, {TRACKER_FILE: TRACKER_TEMPLATES[chosen]}
+
+
 def render_project_files(task_id: str, relatives: list[str],
                          template_for: dict[str, str] | None = None) -> dict[str, str]:
     engine.identifier(task_id)
@@ -70,10 +80,9 @@ def start(workspace: str | Path, project_id: str, name: str, brief: str = "",
     if brief:
         brief = engine.plain_text(brief)
     selected = [OPTIONAL_DOCUMENTS[document] for document in documents]
-    template_for: dict[str, str] = {}
-    if chosen_tracker:
-        selected.append(TRACKER_FILE)
-        template_for[TRACKER_FILE] = TRACKER_TEMPLATES[chosen_tracker]
+    tracker_relative, template_for = tracker_render(chosen_tracker)
+    if tracker_relative:
+        selected.append(tracker_relative)
     files = render_project_files(task_id, [*PROJECT_FILES, *selected], template_for)
     files[".agent-workflow.local.json"] = engine.encode({
         "schema_version": "1.0", "framework_root": str(engine.ROOT), "task_id": task_id,
@@ -89,7 +98,6 @@ def start(workspace: str | Path, project_id: str, name: str, brief: str = "",
         "issue_tracker": {
             "selected": chosen_tracker,
             "file": TRACKER_FILE if chosen_tracker else None,
-            "undecided": not chosen_tracker,
         },
         "business_environment": {
             "policy": "per_project",

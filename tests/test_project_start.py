@@ -479,7 +479,7 @@ class ProjectStartCliTests(unittest.TestCase):
     def test_issue_tracker_is_chosen_at_start_and_never_preset(self) -> None:
         undecided = self.base / "tracker-undecided"
         receipt = self.start(undecided, project_id="tracker-undecided", apply=True)
-        self.assertEqual(receipt["issue_tracker"], {"selected": None, "file": None, "undecided": True})
+        self.assertEqual(receipt["issue_tracker"], {"selected": None, "file": None})
         self.assertFalse((undecided / "docs/agents/issue-tracker.md").exists(),
                          "an unchosen tracker must not be preset by a default variant")
         for relative in ("docs/agents/triage-labels.md", "docs/agents/domain.md"):
@@ -494,8 +494,7 @@ class ProjectStartCliTests(unittest.TestCase):
                     "start", workspace, "--project-id", f"tracker-{tracker}", "--name", "合成项目",
                     "--task-id", "kickoff", "--tracker", tracker, "--apply"), ok=True)
                 self.assertEqual(created["issue_tracker"],
-                                 {"selected": tracker, "file": "docs/agents/issue-tracker.md",
-                                  "undecided": False})
+                                 {"selected": tracker, "file": "docs/agents/issue-tracker.md"})
                 path = workspace / "docs/agents/issue-tracker.md"
                 self.assertTrue(path.is_file())
                 contents[tracker] = path.read_text(encoding="utf-8")

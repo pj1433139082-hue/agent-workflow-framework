@@ -87,10 +87,9 @@ def complete(workspace: str | Path, task_id: str, with_docs: list[str], *, apply
             raise engine.WorkflowError("invalid_project_documents", "Select at least one declared optional document or issue tracker.")
         # Progress names stay the declared document names; the tracker is one more missing document.
         targets = {document: project_start.OPTIONAL_DOCUMENTS[document] for document in selected}
-        template_for: dict[str, str] = {}
-        if chosen_tracker:
-            targets[TRACKER_DOCUMENT] = project_start.TRACKER_FILE
-            template_for[project_start.TRACKER_FILE] = project_start.TRACKER_TEMPLATES[chosen_tracker]
+        tracker_relative, template_for = project_start.tracker_render(chosen_tracker)
+        if tracker_relative:
+            targets[TRACKER_DOCUMENT] = tracker_relative
         progress["pending"] = sorted(targets)
         verified = verify_task(workspace, task_id)
         root = verified.task_dir.parent.parent
