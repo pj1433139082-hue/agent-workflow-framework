@@ -1,6 +1,6 @@
 ---
 name: project-start
-description: 用通用智能体协作框架启动新项目，生成入口与可续接的规划任务，或为框架已有项目按需补建辅助文档。不用于覆盖已有项目、接入历史项目或直接部署。
+description: 用通用智能体协作框架启动新项目或非破坏性纳管存量项目，生成入口与可续接的规划任务，或为框架已有项目按需补建辅助文档。不覆盖已有源码与历史，不直接部署。
 ---
 
 # 新项目启动
@@ -15,7 +15,7 @@ description: 用通用智能体协作框架启动新项目，生成入口与可�
 
 集中核对项目名称、新目录和一句目标。用户已经给出的不再问；目标允许先留空进入澄清。未给项目 ID 时建议一个安全英文 slug；目录必须在框架外且尚不存在。已有目录只报告并建议新位置，不把“开新项目”理解为覆盖旧项目。当前项目尚无入口时不要要求它先有 AGENTS.md。
 
-默认轻量启动，不要求七张项目卡。需要运行环境、架构、长期进展、总结或结果口径时，读 [references/project-documents.md](references/project-documents.md)，按真实需要选择辅助模板，和其他缺项同轮说明。为框架已有项目补文档走该引用中的 project-docs；历史项目接入/归档仍先只读盘点，不调用 start 覆盖。
+默认轻量启动，不要求七张项目卡。需要运行环境、架构、长期进展、总结或结果口径时，读 [references/project-documents.md](references/project-documents.md)，按真实需要选择辅助模板，和其他缺项同轮说明。为框架已有项目补文档走该引用中的 project-docs；存量/历史项目接入使用公开命令 adopt 进行非破坏性纳管，保留已有代码与版本历史，不调用 start 覆盖。
 
 档位只选一次：assisted（推荐）连续处理已交办本地工作，只集中询问新增业务决定；full-auto 不猜业务答案；manual-review 在实质写入前停下。用户已选档或采用已展示推荐就沿用；不把 --apply 变成每条命令都问一次。
 
@@ -31,8 +31,14 @@ description: 用通用智能体协作框架启动新项目，生成入口与可�
 
 通过本技能脚本转发命令（每个参数独立传递，不拼接 shell；框架路径可用 `--framework` 显式指定）：
 
+全新项目启动：
 ```text
 python <本技能目录>/scripts/start_project.py --framework <框架目录> -- start <新目录> --project-id <ID> --name <名称> --brief <用户原始目标> --mode assisted
+```
+
+存量/历史项目非破坏性纳管：
+```text
+python <本技能目录>/scripts/start_project.py --framework <框架目录> -- adopt <已有目录> --project-id <ID> --name <名称> --brief <改造目标> --mode assisted
 ```
 
 检查默认预览的目录和文件清单。明确交办创建且范围齐全时，同一命令加 --apply 即可执行；manual-review 则先按所选节奏暂停。调用仅创建本地项目骨架，不初始化 Git、不建远端、不上传或部署。doctor 只检查框架工具；start 的 business_environment 回执明确本次未配置、未验证业务环境，不能把模板或规划 ready 当作可运行证明。

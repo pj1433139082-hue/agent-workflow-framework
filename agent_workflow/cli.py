@@ -35,6 +35,15 @@ def main(argv: list[str] | None = None) -> int:
     start.add_argument("--mode", default="assisted", choices=sorted(engine.MODES))
     start.add_argument("--with-docs", action="append", choices=sorted(project_start.OPTIONAL_DOCUMENTS), default=[])
     start.add_argument("--apply", action="store_true")
+    adopt = commands.add_parser("adopt", help="Adopt an existing workspace non-destructively into the framework.")
+    adopt.add_argument("workspace")
+    adopt.add_argument("--project-id", required=True)
+    adopt.add_argument("--name", default="")
+    adopt.add_argument("--brief", default="")
+    adopt.add_argument("--task-id", default="kickoff")
+    adopt.add_argument("--mode", default="assisted", choices=sorted(engine.MODES))
+    adopt.add_argument("--with-docs", action="append", choices=sorted(project_start.OPTIONAL_DOCUMENTS), default=[])
+    adopt.add_argument("--apply", action="store_true")
     documents = commands.add_parser("project-docs", help="Preview or create only missing optional project documents.",
                                     description="Existing valid workspace/task only. Default is read-only; existing ordinary files are never overwritten. Task facts and index remain unchanged.")
     documents.add_argument("workspace", help="Existing framework-created workspace outside this checkout.")
@@ -74,6 +83,8 @@ def main(argv: list[str] | None = None) -> int:
             result = engine.task_view(**args)
         elif name == "start":
             result = project_start.start(**args)
+        elif name == "adopt":
+            result = project_start.adopt(**args)
         elif name == "project-docs":
             result = project_documents.complete(**args)
         else:
