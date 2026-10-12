@@ -11,7 +11,7 @@ description: 用通用智能体协作框架启动新项目或非破坏性纳管�
 
 先读取当前工作区已有 AGENTS.md，保留使用者的工具、代理和操作边界。执行 `python <本技能目录>/scripts/start_project.py --locate`；脚本读取显式框架目录、AGENT_WORKFLOW_FRAMEWORK、当前项目本机定位、本技能的源码 checkout 或本机框架登记。无法唯一定位时只问一次框架目录，不猜某个固定盘符，不自动下载。
 
-助手失败先按结构化错误类别处理，见 [启动助手诊断](references/start-diagnostics.md)。工具版本或助手参数错误不重复询问框架位置；遇到框架 CLI 返回的业务错误（如 `task_exists`、`transition_blocked`）严禁重新调用 start/adopt，按诊断清单对症解决；已转发 CLI 的实际结果与部分完成回执不得改写或自动重放。
+助手失败先按结构化错误类别处理，见 [启动助手诊断](references/start-diagnostics.md)。工具版本或助手参数错误不重复询问框架位置；遇到框架 CLI 返回的业务错误（如 `task_exists`、`transition_blocked`）严禁用同一参数重新调用 start/adopt，按诊断清单对症解决；在同一工作区换 `--task-id` 属于新增任务而非重试，须属于用户明确交办的范围。已转发 CLI 的实际结果与部分完成回执不得改写或自动重放。
 
 明确区分场景：全新项目启动（`start`，目录尚不存在）与存量项目纳管（`adopt`，目录已存在且有代码/历史）。纳管定位明确：`adopt` 负责将既有工程纳入智能体协作框架（建立项目标识、规范入口与初始任务），不承担跨系统业务重构或把通用框架硬套成特定领域私有骨架。集中核对项目名称、目标与必要的辅助文档需求；用户已经给出的不再问，严禁为关闭机检项发起机械式连环追问。未给项目 ID 时建议一个安全英文 slug；新项目目录必须在框架外且尚不存在，存量项目目录必须真实存在。
 
@@ -38,8 +38,9 @@ python <本技能目录>/scripts/start_project.py --framework <框架目录> -- 
 
 存量/历史项目非破坏性纳管（零覆盖、保留全部既有代码与 Git 历史）：
 ```text
-python <本技能目录>/scripts/start_project.py --framework <框架目录> -- adopt <已有目录> --project-id <ID> --name <名称> --brief <改造目标> --mode assisted [--with-docs architecture ...]
+python <本技能目录>/scripts/start_project.py --framework <框架目录> -- adopt <已有目录> --project-id <ID> --name <名称> --brief <改造目标> --task-id <任务ID，默认 kickoff> --mode assisted [--with-docs architecture ...]
 ```
+若该工作区已有 `tasks/<task-id>/`（例如已纳管项目都有 `tasks/kickoff/`），`adopt` 返回 `task_exists`。传入另一个 `--task-id` 等于**在同一工作区新增一个任务，不是续接既有任务**；只有用户明确要"加一条流程/任务"时才走这条路，要"接着上次的 kickoff 干"则改用 `status` / `context` 续接，不写盘。
 
 检查默认预览的目录和文件清单。明确交办创建且范围齐全时，同一命令加 --apply 即可执行；manual-review 则先按所选节奏暂停。调用仅创建本地项目骨架，不初始化 Git、不建远端、不上传或部署。doctor 只检查框架工具；start/adopt 的 business_environment 回执明确本次未配置、未验证业务环境，不能把模板或规划 ready 当作可运行证明。
 

@@ -28,7 +28,7 @@
 
 | 错误代码 (`error.code`) | 含义与产生原因 | 下一步处置 |
 | --- | --- | --- |
-| `task_exists` | 目标任务目录（如 `tasks/kickoff/`）已存在 | **不要重跑 start/adopt**。已有任务改用 `status` / `context` 续接，或传入 `--task-id <新ID>` 另起任务。 |
+| `task_exists` | 目标任务目录（如 `tasks/kickoff/`）已存在 | **不要用同一 task-id 重跑 start/adopt**。想接着既有任务干 → 改用 `status` / `context` 续接，不写盘；想在同一工作区加一条新任务 → 传 `--task-id <新ID>`，但这会真建新的任务目录（已纳管项目上实测会新增 `.agent-workflow.local.json` 与 `AGENTS.framework.md`），执行前先确认用户要的是后者。 |
 | `workspace_exists` | 执行 `start` 时工作区目录已存在 | 若需纳管既有代码，改用 `adopt`；若是新项目，更换尚不存在的目标路径。框架不覆盖任何已有文件。 |
 | `workspace_not_found` | 执行 `adopt` 或后续命令时目标目录不存在 | 检查工作区绝对路径是否拼写错误或盘符不符。 |
 | `transition_blocked` | 推进阶段（`advance`）时前置检查未满足 | 运行 `context --check` 检查缺失事实或未通过门禁；编辑 `payload.json` 或 `plan.md` 后运行 `context --write` 重建索引再推进。 |
