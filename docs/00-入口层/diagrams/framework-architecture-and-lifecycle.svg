@@ -1,0 +1,210 @@
+<svg viewBox="0 0 1160 680" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="f-title f-desc" id="framework-arch-svg">
+  <title id="f-title">通用智能体协作框架全景分层架构与生命周期流转拓扑</title>
+  <desc id="f-desc">展示通用智能体协作框架的技能交互层、核心底座与公开CLI、场景业务包层、外部独立项目工作区以及质量硬门禁体系</desc>
+  <defs>
+    <style>
+      #framework-arch-svg {
+        background-color: #fbfbfd;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      }
+      .box { rx: 8px; stroke-width: 1.2px; }
+      .title-text { font-size: 20px; font-weight: 700; fill: #0f172a; }
+      .subtitle-text { font-size: 12px; fill: #64748b; }
+      .layer-label { font-size: 13px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; }
+      .node-title { font-size: 13px; font-weight: 600; }
+      .node-desc { font-size: 11px; fill: #475569; }
+      .node-mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; font-size: 10.5px; }
+      .badge { rx: 4px; }
+      .badge-text { font-size: 9.5px; font-weight: 600; }
+      .arrow { stroke-width: 1.5; stroke-dasharray: none; marker-end: url(#arrow-head); fill: none; }
+      .dashed-arrow { stroke-width: 1.2; stroke-dasharray: 4 3; marker-end: url(#arrow-head-dashed); fill: none; }
+    </style>
+    <marker id="arrow-head" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#0284c7" />
+    </marker>
+    <marker id="arrow-head-dashed" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" />
+    </marker>
+    <filter id="card-shadow" x="-3%" y="-3%" width="106%" height="108%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.04" />
+    </filter>
+  </defs>
+
+  <!-- Header -->
+  <g transform="translate(36, 32)">
+    <rect x="0" y="0" width="1088" height="48" rx="8" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" filter="url(#card-shadow)" />
+    <text x="20" y="28" class="title-text">通用智能体协作框架 · 全景分层架构与生命周期流转拓扑</text>
+    <text x="640" y="29" class="subtitle-text">底座普适化 · 业务包即插即用 · 外部工作区物理隔离 · 交互三档位约定</text>
+  </g>
+
+  <!-- LAYER 1: 交互与配套技能层 (Agent Interaction & Skills) -->
+  <g transform="translate(36, 96)">
+    <rect x="0" y="0" width="1088" height="106" class="box" fill="#f0f9ff" stroke="#bae6fd" filter="url(#card-shadow)" />
+    <text x="20" y="24" class="layer-label" fill="#0369a1">Layer 1: 智能体交互与配套技能层 (Agent Interaction &amp; Skills)</text>
+    <text x="460" y="24" class="subtitle-text">人机交互握手 · 档位节奏控制 · 只读Hook分流</text>
+
+    <!-- Card: project-start -->
+    <g transform="translate(20, 36)">
+      <rect x="0" y="0" width="250" height="58" rx="6" fill="#ffffff" stroke="#7dd3fc" stroke-width="1" />
+      <text x="12" y="20" class="node-title" fill="#0c4a6e">配套技能: project-start</text>
+      <text x="12" y="36" class="node-mono" fill="#0284c7">.skillshare/skills/project-start/</text>
+      <text x="12" y="50" class="node-desc">独立工作区生成 · project-docs 补全</text>
+    </g>
+
+    <!-- Card: workflow-router -->
+    <g transform="translate(285, 36)">
+      <rect x="0" y="0" width="250" height="58" rx="6" fill="#ffffff" stroke="#7dd3fc" stroke-width="1" />
+      <text x="12" y="20" class="node-title" fill="#0c4a6e">配套技能: workflow-router</text>
+      <text x="12" y="36" class="node-mono" fill="#0284c7">.skillshare/skills/workflow-router/</text>
+      <text x="12" y="50" class="node-desc">既有任务定位 · 集中推荐问卷与分流</text>
+    </g>
+
+    <!-- Card: Cadence Modes -->
+    <g transform="translate(550, 36)">
+      <rect x="0" y="0" width="280" height="58" rx="6" fill="#ffffff" stroke="#93c5fd" stroke-width="1" />
+      <text x="12" y="20" class="node-title" fill="#1e3a8a">执行节奏三档位 (Cadence)</text>
+      <g transform="translate(12, 28)">
+        <rect x="0" y="0" width="76" height="20" class="badge" fill="#dbeafe" />
+        <text x="6" y="14" class="badge-text" fill="#1d4ed8">assisted (推荐)</text>
+        <rect x="84" y="0" width="68" height="20" class="badge" fill="#f1f5f9" />
+        <text x="92" y="14" class="badge-text" fill="#475569">full-auto</text>
+        <rect x="160" y="0" width="94" height="20" class="badge" fill="#f1f5f9" />
+        <text x="166" y="14" class="badge-text" fill="#475569">manual-review</text>
+      </g>
+    </g>
+
+    <!-- Card: Readonly Hooks -->
+    <g transform="translate(845, 36)">
+      <rect x="0" y="0" width="223" height="58" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" />
+      <text x="12" y="20" class="node-title" fill="#334155">只读上下文入口 (Hook)</text>
+      <text x="12" y="36" class="node-mono" fill="#64748b">.codex/hooks.json (read-only)</text>
+      <text x="12" y="50" class="node-desc">非侵入式提示，CLI仍为第一事实</text>
+    </g>
+  </g>
+
+  <!-- LAYER 2: 核心控制底座与公开CLI (Core Foundation CLI) -->
+  <g transform="translate(36, 218)">
+    <rect x="0" y="0" width="1088" height="126" class="box" fill="#f8fafc" stroke="#cbd5e1" filter="url(#card-shadow)" />
+    <text x="20" y="24" class="layer-label" fill="#1e293b">Layer 2: 核心控制底座与公开 CLI (Core Foundation &amp; Public CLI)</text>
+    <text x="490" y="24" class="subtitle-text">工具运行时解耦 (Python ≥3.11) · 线性推进单向状态机 · 事实恢复回执</text>
+
+    <!-- Box: CLI Commands -->
+    <g transform="translate(20, 36)">
+      <rect x="0" y="0" width="360" height="76" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1" />
+      <text x="14" y="22" class="node-title" fill="#0f172a">公开 CLI 接口体系 (agent_workflow)</text>
+      <text x="14" y="42" class="node-mono" fill="#0284c7">start | project-docs | status | context</text>
+      <text x="14" y="60" class="node-mono" fill="#0284c7">advance --apply | doctor | packs | catalog</text>
+    </g>
+
+    <!-- Box: State Engine -->
+    <g transform="translate(395, 36)">
+      <rect x="0" y="0" width="340" height="76" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1" />
+      <text x="14" y="22" class="node-title" fill="#0f172a">确定性线性状态机引擎 (Lifecycle Engine)</text>
+      <text x="14" y="42" class="node-mono" fill="#334155">scope ──▶ plan ──▶ ready (project-planning)</text>
+      <text x="14" y="62" class="node-desc">禁止跨状态跳跃 · 机检条件与必填决定全闭环方可跃迁</text>
+    </g>
+
+    <!-- Box: Verification & Recovery -->
+    <g transform="translate(750, 36)">
+      <rect x="0" y="0" width="318" height="76" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="1" />
+      <text x="14" y="22" class="node-title" fill="#0f172a">事实核验与恢复回执 (Recovery Engine)</text>
+      <text x="14" y="42" class="node-mono" fill="#10b981">recovery-receipt.json / 证据哈希校验</text>
+      <text x="14" y="62" class="node-desc">中断自愈 · 结构化回执 · 事实与索引双向自证</text>
+    </g>
+  </g>
+
+  <!-- LAYER 3: 场景业务包层 (Business Packs) -->
+  <g transform="translate(36, 360)">
+    <rect x="0" y="0" width="460" height="154" class="box" fill="#fafaf9" stroke="#d6d3d1" filter="url(#card-shadow)" />
+    <text x="20" y="24" class="layer-label" fill="#44403c">Layer 3: 场景业务包层 (Business Packs)</text>
+    <text x="20" y="42" class="subtitle-text">领域规则插件化 · 严格只收录虚构样例资料</text>
+
+    <!-- Pack 1 -->
+    <g transform="translate(20, 52)">
+      <rect x="0" y="0" width="420" height="26" rx="4" fill="#ffffff" stroke="#e7e5e4" />
+      <text x="10" y="17" class="node-mono" fill="#1c1917">project-planning</text>
+      <text x="130" y="17" class="node-desc">通用新项目启动 | scope → plan → ready</text>
+    </g>
+    <!-- Pack 2 -->
+    <g transform="translate(20, 84)">
+      <rect x="0" y="0" width="420" height="26" rx="4" fill="#ffffff" stroke="#e7e5e4" />
+      <text x="10" y="17" class="node-mono" fill="#1c1917">ecommerce-catalog</text>
+      <text x="130" y="17" class="node-desc">电商商品资料审核 | collect → review → ready</text>
+    </g>
+    <!-- Pack 3 -->
+    <g transform="translate(20, 116)">
+      <rect x="0" y="0" width="420" height="26" rx="4" fill="#ffffff" stroke="#e7e5e4" />
+      <text x="10" y="17" class="node-mono" fill="#1c1917">document-delivery</text>
+      <text x="130" y="17" class="node-desc">通用文档交付验证 | draft → validate → complete</text>
+    </g>
+  </g>
+
+  <!-- LAYER 4: 外部独立项目工作区 (External Workspaces) -->
+  <g transform="translate(512, 360)">
+    <rect x="0" y="0" width="612" height="154" class="box" fill="#f0fdf4" stroke="#86efac" filter="url(#card-shadow)" stroke-dasharray="5 3" />
+    <text x="20" y="24" class="layer-label" fill="#166534">Layer 4: 外部独立项目工作区 (External Workspace · 框架外)</text>
+    <text x="20" y="42" class="subtitle-text">物理完全隔离 · 严禁污染框架源 · 业务事实完整闭环</text>
+
+    <!-- Sub-box: Task Facts -->
+    <g transform="translate(20, 52)">
+      <rect x="0" y="0" width="270" height="88" rx="6" fill="#ffffff" stroke="#bbf7d0" stroke-width="1" />
+      <text x="12" y="20" class="node-title" fill="#14532d">任务事实源 (Task Facts)</text>
+      <text x="12" y="38" class="node-mono" fill="#15803d">payload.json (业务参数)</text>
+      <text x="12" y="54" class="node-mono" fill="#15803d">decisions.json (交互决策)</text>
+      <text x="12" y="70" class="node-mono" fill="#15803d">plan.md (方案与验证证据)</text>
+    </g>
+
+    <!-- Sub-box: Derived Index & Docs -->
+    <g transform="translate(305, 52)">
+      <rect x="0" y="0" width="287" height="88" rx="6" fill="#ffffff" stroke="#bbf7d0" stroke-width="1" />
+      <text x="12" y="20" class="node-title" fill="#14532d">衍生索引与文档 (Index &amp; Docs)</text>
+      <text x="12" y="38" class="node-mono" fill="#047857">context.json / workflow-state.json</text>
+      <text x="12" y="54" class="node-desc">docs/project/ (按需补建辅助文档)</text>
+      <text x="12" y="70" class="node-desc">environment.md (业务独立运行时记录)</text>
+    </g>
+  </g>
+
+  <!-- LAYER 5: 质量硬门禁与安全防线 (Quality Hard Gates & Security) -->
+  <g transform="translate(36, 530)">
+    <rect x="0" y="0" width="1088" height="114" class="box" fill="#fdf2f8" stroke="#fbcfe8" filter="url(#card-shadow)" />
+    <text x="20" y="24" class="layer-label" fill="#9d174d">Layer 5: 框架质量硬门禁体系与开源安全防线 (Quality Hard Gates &amp; Security)</text>
+
+    <!-- Gate 1 -->
+    <g transform="translate(20, 36)">
+      <rect x="0" y="0" width="245" height="64" rx="6" fill="#ffffff" stroke="#f472b6" stroke-width="1" />
+      <text x="12" y="20" class="node-title" fill="#831843">Gate 1: 仓库健康度与代码规范</text>
+      <text x="12" y="38" class="node-mono" fill="#be185d">scripts/check_repository.py</text>
+      <text x="12" y="54" class="node-desc">84+ 全量文件规范 · 零代码漂移</text>
+    </g>
+
+    <!-- Gate 2 -->
+    <g transform="translate(285, 36)">
+      <rect x="0" y="0" width="245" height="64" rx="6" fill="#ffffff" stroke="#f472b6" stroke-width="1" />
+      <text x="12" y="20" class="node-title" fill="#831843">Gate 2: 隐私与敏感信息防御</text>
+      <text x="12" y="38" class="node-mono" fill="#be185d">Privacy &amp; Whitelist Gate</text>
+      <text x="12" y="54" class="node-desc">绝对白名单机制 · 杜绝私有数据外泄</text>
+    </g>
+
+    <!-- Gate 3 -->
+    <g transform="translate(550, 36)">
+      <rect x="0" y="0" width="245" height="64" rx="6" fill="#ffffff" stroke="#f472b6" stroke-width="1" />
+      <text x="12" y="20" class="node-title" fill="#831843">Gate 3: 自动化单元测试回归</text>
+      <text x="12" y="38" class="node-mono" fill="#be185d">python -m unittest (70+ PASS)</text>
+      <text x="12" y="54" class="node-desc">100% 核心状态机与边界逻辑自证</text>
+    </g>
+
+    <!-- Gate 4 -->
+    <g transform="translate(815, 36)">
+      <rect x="0" y="0" width="253" height="64" rx="6" fill="#ffffff" stroke="#f472b6" stroke-width="1" />
+      <text x="12" y="20" class="node-title" fill="#831843">Gate 4: 社区治理与分支保护</text>
+      <text x="12" y="38" class="node-mono" fill="#be185d">Branch Protection &amp; Forms</text>
+      <text x="12" y="54" class="node-desc">main 保护 · 禁强推 · 禁误删</text>
+    </g>
+  </g>
+
+  <!-- Connectors -->
+  <path d="M 160 202 L 160 216" class="arrow" />
+  <path d="M 420 202 L 420 216" class="arrow" />
+  <path d="M 240 344 L 240 358" class="arrow" />
+  <path d="M 780 344 L 780 358" class="arrow" />
+</svg>

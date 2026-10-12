@@ -14,4 +14,4 @@ full-auto、assisted、manual-review 是智能体协作节奏约定，不是 CLI
 遵循使用者当前配置的代理和工具；不得更改系统代理或 VPN，本项目不要求固定代理端口、模型厂商或子智能体型号。
 验证走公开 CLI 和只读 hook，不以私有函数测试代替验收；hook 配置交付不等于客户端已触发，需以受信任客户端的实际证据为准。
 
-维护框架本身时，规格与任务使用当前 origin 对应仓库的 GitHub Issues；配置见 docs/agents/issue-tracker.md，标签见 docs/agents/triage-labels.md。这不是业务任务的新门禁，也不要求新建的业务项目共用框架维护仓库。领域术语使用 CONTEXT.md，系统决策使用 docs/adr/，两者的读取顺序与边界见 docs/agents/domain.md。
+维护框架本身时，规格与任务使用当前 origin 对应仓库的 GitHub Issues；配置见 docs/agents/issue-tracker.md，标签见 docs/agents/triage-labels.md，项目技能规范见 docs/agents/workflow-skills.md。这不是业务任务的新门禁，也不要求新建的业务项目共用框架维护仓库。领域术语使用 CONTEXT.md，系统决策使用 docs/adr/，两者的读取顺序与边界见 docs/agents/domain.md。
