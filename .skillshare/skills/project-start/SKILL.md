@@ -11,11 +11,11 @@ description: 用通用智能体协作框架启动新项目或非破坏性纳管�
 
 先读取当前工作区已有 AGENTS.md，保留使用者的工具、代理和操作边界。执行 `python <本技能目录>/scripts/start_project.py --locate`；脚本读取显式框架目录、AGENT_WORKFLOW_FRAMEWORK、当前项目本机定位、本技能的源码 checkout 或本机框架登记。无法唯一定位时只问一次框架目录，不猜某个固定盘符，不自动下载。
 
-助手失败先按结构化错误类别处理，见 [启动助手诊断](references/start-diagnostics.md)。工具版本或助手参数错误不重复询问框架位置；已转发 CLI 的实际结果与部分完成回执不得改写或自动重放。
+助手失败先按结构化错误类别处理，见 [启动助手诊断](references/start-diagnostics.md)。工具版本或助手参数错误不重复询问框架位置；遇到框架 CLI 返回的业务错误（如 `task_exists`、`transition_blocked`）严禁重新调用 start/adopt，按诊断清单对症解决；已转发 CLI 的实际结果与部分完成回执不得改写或自动重放。
 
-集中核对项目名称、新目录和一句目标。用户已经给出的不再问；目标允许先留空进入澄清。未给项目 ID 时建议一个安全英文 slug；目录必须在框架外且尚不存在。已有目录只报告并建议新位置，不把“开新项目”理解为覆盖旧项目。当前项目尚无入口时不要要求它先有 AGENTS.md。
+明确区分场景：全新项目启动（`start`，目录尚不存在）与存量项目纳管（`adopt`，目录已存在且有代码/历史）。纳管定位明确：`adopt` 负责将既有工程纳入智能体协作框架（建立项目标识、规范入口与初始任务），不承担跨系统业务重构或把通用框架硬套成特定领域私有骨架。集中核对项目名称、目标与必要的辅助文档需求；用户已经给出的不再问，严禁为关闭机检项发起机械式连环追问。未给项目 ID 时建议一个安全英文 slug；新项目目录必须在框架外且尚不存在，存量项目目录必须真实存在。
 
-默认轻量启动，不要求七张项目卡。需要运行环境、架构、长期进展、总结或结果口径时，读 [references/project-documents.md](references/project-documents.md)，按真实需要选择辅助模板，和其他缺项同轮说明。为框架已有项目补文档走该引用中的 project-docs；存量/历史项目接入使用公开命令 adopt 进行非破坏性纳管，保留已有代码与版本历史，不调用 start 覆盖。
+默认轻量启动，不要求七张项目卡。需要运行环境、架构、长期进展、总结或结果口径时，读 [references/project-documents.md](references/project-documents.md)，按真实需要选择辅助模板（如 `--with-docs environment`），和其他缺项同轮说明。为框架已有项目补文档走该引用中的 project-docs；存量/历史项目接入使用公开命令 adopt 进行非破坏性纳管，保留已有代码与版本历史，不调用 start 覆盖。
 
 档位只选一次：assisted（推荐）连续处理已交办本地工作，只集中询问新增业务决定；full-auto 不猜业务答案；manual-review 在实质写入前停下。用户已选档或采用已展示推荐就沿用；不把 --apply 变成每条命令都问一次。
 
@@ -33,15 +33,15 @@ description: 用通用智能体协作框架启动新项目或非破坏性纳管�
 
 全新项目启动：
 ```text
-python <本技能目录>/scripts/start_project.py --framework <框架目录> -- start <新目录> --project-id <ID> --name <名称> --brief <用户原始目标> --mode assisted
+python <本技能目录>/scripts/start_project.py --framework <框架目录> -- start <新目录> --project-id <ID> --name <名称> --brief <用户原始目标> --mode assisted [--with-docs environment ...]
 ```
 
-存量/历史项目非破坏性纳管：
+存量/历史项目非破坏性纳管（零覆盖、保留全部既有代码与 Git 历史）：
 ```text
-python <本技能目录>/scripts/start_project.py --framework <框架目录> -- adopt <已有目录> --project-id <ID> --name <名称> --brief <改造目标> --mode assisted
+python <本技能目录>/scripts/start_project.py --framework <框架目录> -- adopt <已有目录> --project-id <ID> --name <名称> --brief <改造目标> --mode assisted [--with-docs architecture ...]
 ```
 
-检查默认预览的目录和文件清单。明确交办创建且范围齐全时，同一命令加 --apply 即可执行；manual-review 则先按所选节奏暂停。调用仅创建本地项目骨架，不初始化 Git、不建远端、不上传或部署。doctor 只检查框架工具；start 的 business_environment 回执明确本次未配置、未验证业务环境，不能把模板或规划 ready 当作可运行证明。
+检查默认预览的目录和文件清单。明确交办创建且范围齐全时，同一命令加 --apply 即可执行；manual-review 则先按所选节奏暂停。调用仅创建本地项目骨架，不初始化 Git、不建远端、不上传或部署。doctor 只检查框架工具；start/adopt 的 business_environment 回执明确本次未配置、未验证业务环境，不能把模板或规划 ready 当作可运行证明。
 
 随后用同一脚本调用 `status <项目绝对路径> --task-id kickoff` 与 `context`，读新项目自己的 AGENTS.md。如果用了自定义 task-id，所有后续命令都使用该 ID。先把用户已明确给出的使用者、范围、排除项和成功标准记入 payload.json；只集中询问仍缺少的业务信息，不为关闭检查项重复问已回答的问题，也不能把示例或空模板当业务事实。编辑事实后用 context --write 重建索引，再查 status。
 
