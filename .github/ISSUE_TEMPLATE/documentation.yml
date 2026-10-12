@@ -1,0 +1,34 @@
+name: "📝 Documentation / 文档改进"
+description: "提出关于文档修正、ADR 架构决策记录补充或术语澄清的建议"
+title: "[Docs]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        清晰准确的文档对通用智能体协作至关重要。感谢你帮助完善文档！
+
+  - type: input
+    id: doc-path
+    attributes:
+      label: "相关文档路径 (Affected Document Path)"
+      description: "受影响的 Markdown 文件路径（如 `docs/00-入口层/01-快速开始.md` 或 `CONTEXT.md`）"
+      placeholder: "docs/..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: issue-description
+    attributes:
+      label: "问题或改进说明 (Description)"
+      description: "描述文档中存在的表述模糊、示例过时、拼写错误或需要补充的上下文"
+    validations:
+      required: true
+
+  - type: textarea
+    id: suggested-content
+    attributes:
+      label: "建议的修改或增补内容 (Suggested Changes)"
+      description: "提供你建议的文档修改草案或段落"
+    validations:
+      required: true

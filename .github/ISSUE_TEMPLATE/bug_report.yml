@@ -1,0 +1,87 @@
+name: "🐛 Bug Report / 问题反馈"
+description: "报告框架调度异常、CLI 错误、并发锁状态异常或与契约不符的缺陷"
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你帮助改进 agent-workflow-framework！
+        **⚠️ 零泄漏安全红线**：请切勿在 Issue 中包含任何真实业务数据、生产凭据或内部私有系统信息。所有复现示例请使用虚构数据或框架自带演示业务包。
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: "操作系统 (Operating System)"
+      description: "请选择你运行框架的操作系统"
+      options:
+        - "Windows 10 / 11 (PowerShell / pwsh)"
+        - "Linux (Ubuntu / Debian / CentOS / RHEL)"
+        - "macOS"
+        - "WSL2"
+        - "其他 (请在复现步骤中注明)"
+    validations:
+      required: true
+
+  - type: input
+    id: python-version
+    attributes:
+      label: "Python 版本 (Python Version)"
+      description: "框架要求使用 Python >= 3.11（可通过 `python --version` 查看）"
+      placeholder: "e.g. 3.11.10, 3.12.4, 3.13.0"
+    validations:
+      required: true
+
+  - type: input
+    id: cli-command
+    attributes:
+      label: "执行的 CLI 命令 (Executed Command)"
+      description: "发生异常时执行的完整 CLI 命令"
+      placeholder: "e.g. python -m agent_workflow new demo-pack --apply 或 python -m agent_workflow doctor"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "问题描述 (Problem Description)"
+      description: "清晰简洁地说明发生了什么错误"
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: "最小可复现步骤 (Minimal Reproducible Steps)"
+      description: "请提供能稳定复现该问题的最简步骤（包含虚构的配置片段或任务目录信息）"
+      placeholder: |
+        1. 运行 `python -m agent_workflow ...`
+        2. 触发特定阶段决定 `...`
+        3. 观察到异常输出
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: "期望行为 (Expected Behavior)"
+      description: "根据框架契约或文档，你期望的正常行为是什么"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "错误日志与堆栈信息 (Error Logs & Traceback)"
+      description: "请粘贴控制台完整的错误输出或堆栈追踪信息（注意移除任何潜在凭据）"
+      render: shell
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: "提交前确认 (Confirmations)"
+      options:
+        - label: "我已经检查过已有的 Issues，确认该问题尚未被报告过"
+          required: true
+        - label: "我已经确认上述复现内容不包含任何企业真实私有资产、商业数据或生产凭据"
+          required: true

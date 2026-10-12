@@ -1,0 +1,49 @@
+name: "🧩 Workflow Pack Proposal / 业务包提案"
+description: "提议新增一个通用或虚构演示的业务包（Workflow Pack），以展示特定的流程编排机制"
+title: "[Pack Proposal]: "
+labels: ["enhancement", "workflow-pack"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你为 agent-workflow-framework 提议新的业务包！
+        **原则**：内置业务包应保持领域中立或纯虚构演示性质，用于说明多阶段流转、决策交互或文档交付等机制，不绑定特定厂商或私有系统。
+
+  - type: input
+    id: pack-id
+    attributes:
+      label: "业务包标识 (Pack ID)"
+      description: "小写 kebab-case 格式的业务包唯一标识符"
+      placeholder: "e.g. data-processing-pipeline, customer-service-sop"
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: "设计动机与演练目标 (Motivation & Objectives)"
+      description: "该业务包主要演示哪些智能体协作机制？（例如：线性多阶段推进、人工审核介入、文档归档校验等）"
+    validations:
+      required: true
+
+  - type: textarea
+    id: stage-design
+    attributes:
+      label: "阶段与决策设计 (Stages & Decisions)"
+      description: "列出该流程的主要阶段（Stage）、交互决定类型（Decision）以及产出物证据（Evidence）"
+      placeholder: |
+        - stage-1: 需求解析与方案草拟 (assisted)
+        - stage-2: 证据核查与人工评审 (manual-review)
+        - stage-3: 产物交付与状态归档 (full-auto)
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: "设计红线确认 (Confirmations)"
+      options:
+        - label: "该业务包不依赖任何外部付费 API 或私有系统连接"
+          required: true
+        - label: "该业务包所含测试数据与模板均为纯虚构，不包含任何商业秘密"
+          required: true

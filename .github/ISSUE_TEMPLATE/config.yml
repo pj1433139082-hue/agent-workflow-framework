@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 社区讨论与架构探讨 (GitHub Discussions)
+    url: https://github.com/pj1433139082-hue/agent-workflow-framework/discussions
+    about: 提问、分享智能体编排实践或讨论通用架构方案，请前往 Discussions
+  - name: 📖 框架文档与协作总览 (Documentation)
+    url: https://github.com/pj1433139082-hue/agent-workflow-framework/tree/main/docs
+    about: 查看协作总览、一键启动新项目、业务包扩展与 ADR 系统决策
+  - name: 🛡️ 安全漏洞与脱敏隐患通报 (Security Reporting)
+    url: https://github.com/pj1433139082-hue/agent-workflow-framework/security/advisories/new
+    about: 如发现潜在代码安全漏洞或数据脱敏风险，请通过专用私密通道通报，切勿公开提 Issue

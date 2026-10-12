@@ -6,7 +6,8 @@ import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parent.parent
-ALLOWED = {"AGENTS.md", "CONTEXT.md", "README.md", ".gitignore", ".gitattributes", "pyproject.toml",
+ALLOWED = {"AGENTS.md", "CONTEXT.md", "README.md", "LICENSE", "CONTRIBUTING.md", "CODE_OF_CONDUCT.md", "SECURITY.md",
+           ".gitignore", ".gitattributes", "pyproject.toml",
            "agent_workflow", "scripts", "tests", "docs", "templates", ".github", ".codex", ".skillshare"}
 FORBIDDEN_SUFFIXES = {".zip", ".pkl", ".pickle", ".parquet", ".csv", ".xlsx", ".xls", ".onnx", ".pth", ".pt", ".pem", ".key", ".ipynb"}
 PATTERNS = {

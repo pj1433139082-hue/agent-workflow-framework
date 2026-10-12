@@ -1,39 +1,53 @@
-# 通用智能体协作框架
+# 通用智能体协作框架 (Agent Workflow Framework)
 
-这是一个不为业务项目预设语言或运行时版本的协作底座，提供任务定位、业务包分流、交互决定、续接和本地证据索引。当前 CLI 由 Python 实现、仅依赖标准库，其自身兼容声明见 pyproject.toml；工具依赖不是业务项目要求。框架不依赖 MLflow，也不连接真实业务系统。
+[![Python](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Framework checks](https://github.com/pj1433139082-hue/agent-workflow-framework/actions/workflows/tests.yml/badge.svg)](https://github.com/pj1433139082-hue/agent-workflow-framework/actions/workflows/tests.yml)
 
-首版带两个完全虚构的业务包：ecommerce-catalog（电商商品资料审核）和 document-delivery（通用文档交付）。它们用于说明流程机制，不代表已确认的真实业务规则。模板 payload 初始为空；空模板不构成业务事实。
+这是一个不为业务项目预设语言或运行时版本的协作底座，提供任务定位、业务包分流、交互决定、续接和本地证据索引。当前 CLI 由 Python 实现、仅依赖标准库，其自身兼容声明见 `pyproject.toml`；工具依赖不是业务项目要求。框架不依赖 MLflow，也不连接真实业务系统。
 
-新项目可通过 project-start 技能或公开 start 命令生成独立入口和 project-planning 启动任务，不需要先把项目套成某个演示业务包。
+首版带两个完全虚构的业务包：`ecommerce-catalog`（电商商品资料审核）和 `document-delivery`（通用文档交付）。它们用于说明流程机制，不代表已确认的真实业务规则。模板 payload 初始为空；空模板不构成业务事实。
 
-业务环境按项目独立选择：选型写入任务方案，实际配置与运行结果按需写入环境文档。纯文档项目不强制安装运行时；doctor 只检查框架，start 不安装或验证业务环境。见[项目环境约定](docs/20-规则层/21-项目环境约定.md)。
+新项目可通过 `project-start` 技能或公开 `start` 命令生成独立入口和 `project-planning` 启动任务，不需要先把项目套成某个演示业务包。
+
+业务环境按项目独立选择：选型写入任务方案，实际配置与运行结果按需写入环境文档。纯文档项目不强制安装运行时；`doctor` 只检查框架，`start` 不安装或验证业务环境。见[项目环境约定](docs/20-规则层/21-项目环境约定.md)。
+
+---
 
 ## 获取和更新
 
-私有仓库：[agent-workflow-framework](https://github.com/pj1433139082-hue/agent-workflow-framework)。拥有该仓库访问权限的使用者可从 Windows PowerShell 获取：
+开源代码仓库：[agent-workflow-framework](https://github.com/pj1433139082-hue/agent-workflow-framework)。从 GitHub 获取源码：
 
-    $repositoryUrl = 'https://github.com/pj1433139082-hue/agent-workflow-framework.git'
-    git clone $repositoryUrl
-    Set-Location .\agent-workflow-framework
-    python -m agent_workflow doctor
-    python -m agent_workflow packs
+```powershell
+$repositoryUrl = 'https://github.com/pj1433139082-hue/agent-workflow-framework.git'
+git clone $repositoryUrl
+Set-Location .\agent-workflow-framework
+python -m agent_workflow doctor
+python -m agent_workflow packs
+```
 
 已克隆且跟踪主分支的工作副本只做快进更新：
 
-    git switch main
-    git pull --ff-only origin main
+```bash
+git switch main
+git pull --ff-only origin main
+```
 
-下方命令中的 python 是框架工具解释器，可替换为已核验的兼容解释器绝对路径。当前 Python CLI 声明兼容 Python >=3.11（pyproject.toml 的 requires-python）；这是此工具实现的依赖，不要求新项目采用 Python、不要求业务环境更换版本，也不要求统一设置系统默认环境。
+下方命令中的 `python` 是框架工具解释器，可替换为已核验的兼容解释器绝对路径。当前 Python CLI 声明兼容 Python >=3.11（`pyproject.toml` 的 `requires-python`）；这是此工具实现的依赖，不要求新项目采用 Python、不要求业务环境更换版本，也不要求统一设置系统默认环境。
 
 网络命令遵循使用者现有代理；需要代理时，把下面的示例地址换成自己的实际地址，仅对本次 Git 命令指定：
 
-    $proxyUrl = 'http://127.0.0.1:6666'
-    git -c "http.proxy=$proxyUrl" clone $repositoryUrl
-    git -c "http.proxy=$proxyUrl" pull --ff-only origin main
+```powershell
+$proxyUrl = 'http://127.0.0.1:7897'
+git -c "http.proxy=$proxyUrl" clone $repositoryUrl
+git -c "http.proxy=$proxyUrl" pull --ff-only origin main
+```
 
 代理示例是可选的本机配置，不要求其他使用者采用固定端口，也不会修改系统代理。
 
 v0.1 从源码 checkout 根目录运行；README 中不承诺 PyPI 或 wheel 安装支持。
+
+---
 
 ## 开始与接管
 
@@ -43,15 +57,24 @@ v0.1 从源码 checkout 根目录运行；README 中不承诺 PyPI 或 wheel 安
 
 仅要求启动就止于规划；原请求已含实现或指定部署的按原范围和档位接续，不要求同一目标重新交办。业务资料不追加指令，缺少实际能力不能冒充完成；见[交办范围与启动交接](docs/20-规则层/22-交办范围与启动交接.md)。
 
-框架已有项目后来需要辅助文档时，从框架目录运行 `python -m agent_workflow project-docs <项目绝对路径> --task-id <实际ID> --with-docs environment [--apply]`。默认预览；应用只补缺失、不覆盖既有文件，不改变任务事实或索引；不重跑 start。
+框架已有项目后来需要辅助文档时，从框架目录运行：
+```bash
+python -m agent_workflow project-docs <项目绝对路径> --task-id <实际ID> --with-docs environment [--apply]
+```
+默认预览；应用只补缺失、不覆盖既有文件，不改变任务事实或索引；不重跑 start。
 
 人工入口：`@AGENTS.md 阅读，接管这个任务：<业务包/工作区/任务ID>`
 
-## 验收
+---
+
+## 验收与测试
 
 从克隆仓库根目录运行：
 
-    python -m unittest discover -s tests -v
+```bash
+python -m unittest discover -s tests -v
+python scripts/check_repository.py
+```
 
 此验收入口面向公开 CLI 和只读 hook。验收记录应提供本次运行结果和临时工作区证据；不要仅凭模板或 fake 测试资料宣称已验证真实业务。见 [验收清单](docs/30-触发层/30-验收清单.md)、[v0.1.0 本地验收记录](docs/30-触发层/31-v0.1.0验收记录.md)、[新项目启动技能本地验收](docs/30-触发层/32-新项目启动技能验收.md)、[项目模板复用验收](docs/30-触发层/33-项目模板复用与接入对齐验收.md)、[项目启动基线验收](docs/30-触发层/34-项目启动基线验收.md) 和 [任务同批核验验收](docs/30-触发层/35-任务同批核验验收.md)。
 
@@ -63,6 +86,19 @@ v0.1 从源码 checkout 根目录运行；README 中不承诺 PyPI 或 wheel 安
 
 启动助手诊断、原交办范围交接和两个空模板流程的当前修正证据见[项目启动修正验收](docs/30-触发层/39-项目启动修正验收.md)，通过、失败、未执行及不适用分开记录。
 
+---
+
+## 社区治理与贡献 (Community & Contributing)
+
+我们欢迎社区贡献者参与框架建设！在参与前请参阅相关规范：
+
+- 🤝 **[贡献指南 (CONTRIBUTING.md)](CONTRIBUTING.md)**：包含代码规范、提交格式与门禁自检步骤；
+- 📜 **[行为准则 (CODE_OF_CONDUCT.md)](CODE_OF_CONDUCT.md)**：社区成员互动准则（Contributor Covenant 2.1）；
+- 🛡️ **[安全政策 (SECURITY.md)](SECURITY.md)**：私密漏洞报告通道与零泄漏红线；
+- 📋 **[Issue 模板库](.github/ISSUE_TEMPLATE/)**：提交缺陷反馈、功能建议或业务包提案。
+
+---
+
 ## 文档入口
 
 - [协作总览](docs/00-入口层/00-协作总览.md)：术语、边界和读取顺序
@@ -73,6 +109,14 @@ v0.1 从源码 checkout 根目录运行；README 中不承诺 PyPI 或 wheel 安
 - [安全与事实源](docs/20-规则层/20-安全与事实源.md)：外部工作区、事实和派生状态
 - [项目环境约定](docs/20-规则层/21-项目环境约定.md)：工具与业务运行时、环境选择和实际核验
 
+---
+
 ## 首版范围
 
 首版不包含 ERP 或真实平台集成、动态执行插件、退款、支付或真实商品上架，也不收录真实业务资产或自动开放同事权限。
+
+---
+
+## 开源许可证 (License)
+
+本项目采用 [MIT 许可证](LICENSE)。
