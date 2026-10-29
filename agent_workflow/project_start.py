@@ -80,16 +80,34 @@ DETECTED_ENV_PATTERNS = {
     "rust": ["Cargo.toml"],
     "golang": ["go.mod"],
     "java": ["pom.xml", "build.gradle", "build.gradle.kts"],
+    "dotnet": [],
+    "cpp": ["CMakeLists.txt", "meson.build", "conanfile.txt", "vcpkg.json"],
+    "php": ["composer.json"],
+    "ruby": ["Gemfile", "Rakefile"],
+    "dart": ["pubspec.yaml"],
+    "swift": ["Package.swift"],
+    "elixir": ["mix.exs"],
 }
+
+# Solution and project files keep their own names, so match them by suffix.
+DETECTED_ENV_SUFFIXES = {".sln": "dotnet", ".csproj": "dotnet", ".fsproj": "dotnet", ".vbproj": "dotnet"}
 
 
 def detect_environments(root: Path) -> dict[str, list[str]]:
-    detected = {}
+    detected: dict[str, set[str]] = {}
     for env_name, files in sorted(DETECTED_ENV_PATTERNS.items()):
-        found = [f for f in files if (root / f).is_file()]
+        found = {name for name in files if (root / name).is_file()}
         if found:
-            detected[env_name] = sorted(found)
-    return detected
+            detected.setdefault(env_name, set()).update(found)
+    try:
+        entries = sorted(root.iterdir())
+    except OSError:
+        entries = []
+    for path in entries:
+        env_name = DETECTED_ENV_SUFFIXES.get(path.suffix.lower())
+        if env_name and path.is_file():
+            detected.setdefault(env_name, set()).add(path.name)
+    return {env_name: sorted(names) for env_name, names in sorted(detected.items())}
 
 
 def adopt(workspace: str | Path, project_id: str, name: str = "", brief: str = "",
@@ -116,12 +134,26 @@ def adopt(workspace: str | Path, project_id: str, name: str = "", brief: str = "
 
     existing_project_json = root / "project.json"
     if existing_project_json.is_file():
+        p_data: dict[str, Any] | None = None
         try:
             p_data = json.loads(existing_project_json.read_text(encoding="utf-8"))
             if not isinstance(p_data, dict) or p_data.get("schema_version") != "1.0":
                 raise engine.WorkflowError("invalid_project_facts", "Existing project.json is not a valid 1.0 schema.")
         except (OSError, json.JSONDecodeError) as exc:
             raise engine.WorkflowError("invalid_project_facts", "Existing project.json is corrupted or unreadable.") from exc
+        # An adopted workspace already owns one project identity. Adopting it
+        # under a second ID would write task facts that every later command
+        # rejects, so refuse before touching anything.
+        assert p_data is not None
+        existing_project_id = p_data.get("project_id")
+        if not isinstance(existing_project_id, str) or not engine.IDENTIFIER.fullmatch(existing_project_id):
+            raise engine.WorkflowError("invalid_project_facts", "Existing project.json has no usable project_id.")
+        if existing_project_id != project_id:
+            raise engine.WorkflowError(
+                "project_identity_mismatch",
+                f"This workspace already belongs to project '{existing_project_id}'; adopt it with "
+                f"--project-id {existing_project_id}, or choose a new workspace. Nothing was written.",
+            )
 
     detected = detect_environments(root)
     selected_docs = [OPTIONAL_DOCUMENTS[doc] for doc in documents]
@@ -146,9 +178,25 @@ def adopt(workspace: str | Path, project_id: str, name: str = "", brief: str = "
     else:
         preserved_files.append("project.json")
 
-    created_files[".agent-workflow.local.json"] = engine.encode({
-        "schema_version": "1.0", "framework_root": str(engine.ROOT), "task_id": task_id,
-    })
+    # The local marker is the zero-config navigation pointer for one task. Keep an
+    # existing pointer byte-for-byte: adopting another task must not silently
+    # retarget the session that already uses this workspace.
+    local_marker = ".agent-workflow.local.json"
+    marker_path = root / local_marker
+    if marker_path.is_file():
+        preserved_files.append(local_marker)
+        try:
+            marker_data = json.loads(marker_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            marker_data = {}
+        pointed = marker_data.get("task_id") if isinstance(marker_data, dict) else None
+        marker_outcome = {"file": local_marker, "preserved": True,
+                          "active_task_id": pointed if isinstance(pointed, str) else None}
+    else:
+        created_files[local_marker] = engine.encode({
+            "schema_version": "1.0", "framework_root": str(engine.ROOT), "task_id": task_id,
+        })
+        marker_outcome = {"file": local_marker, "preserved": False, "active_task_id": task_id}
 
     env_summary_lines = []
     if detected:
@@ -187,6 +235,8 @@ def adopt(workspace: str | Path, project_id: str, name: str = "", brief: str = "
         "success_criteria": "原有功能与Git历史逐字节保留，协作框架状态机就绪",
     }
 
+    task_files = [f"tasks/{task_id}/{name}" for name in ("task.json", "payload.json", "plan.md")]
+
     result: dict[str, Any] = {
         "project_id": project_id,
         "task_id": task_id,
@@ -197,7 +247,8 @@ def adopt(workspace: str | Path, project_id: str, name: str = "", brief: str = "
         "adopted": True,
         "detected_environments": detected,
         "preserved_files": sorted(preserved_files),
-        "created_files": sorted(created_files),
+        "created_files": sorted([*created_files, *task_files]),
+        "local_marker": marker_outcome,
         "entry": "AGENTS.md",
         "scope": "project adoption and planning only; no destructive modifications or external operations",
         "business_environment": {

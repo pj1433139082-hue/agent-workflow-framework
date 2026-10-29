@@ -9,7 +9,7 @@ description: 用通用智能体协作框架启动新项目或非破坏性纳管�
 
 ## 定位与一次提问
 
-先读取当前工作区已有 AGENTS.md，保留使用者的工具、代理和操作边界。执行 `python <本技能目录>/scripts/start_project.py --locate`；脚本读取显式框架目录、AGENT_WORKFLOW_FRAMEWORK、当前项目本机定位、本技能的源码 checkout 或本机框架登记。无法唯一定位时只问一次框架目录，不猜某个固定盘符，不自动下载。
+先读取当前工作区已有 AGENTS.md，保留使用者的工具、代理和操作边界。执行 `python <本技能目录>/scripts/start_project.py --locate`；脚本读取显式框架目录、AGENT_WORKFLOW_FRAMEWORK、当前项目本机定位（从当前目录向上查找 `.agent-workflow.local.json`）、本技能的源码 checkout 或本机框架登记。无法唯一定位时只问一次框架目录，不猜某个固定盘符，不自动下载。
 
 助手失败先按结构化错误类别处理，见 [启动助手诊断](references/start-diagnostics.md)。工具版本或助手参数错误不重复询问框架位置；遇到框架 CLI 返回的业务错误（如 `task_exists`、`transition_blocked`）严禁用同一参数重新调用 start/adopt，按诊断清单对症解决；在同一工作区换 `--task-id` 属于新增任务而非重试，须属于用户明确交办的范围。已转发 CLI 的实际结果与部分完成回执不得改写或自动重放。
 

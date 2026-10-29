@@ -28,7 +28,7 @@
 
 | 错误代码 (`error.code`) | 含义与产生原因 | 下一步处置 |
 | --- | --- | --- |
-| `task_exists` | 目标任务目录（如 `tasks/kickoff/`）已存在 | **不要用同一 task-id 重跑 start/adopt**。想接着既有任务干 → 改用 `status` / `context` 续接，不写盘；想在同一工作区加一条新任务 → 传 `--task-id <新ID>`，但这会真建新的任务目录（已纳管项目上实测会新增 `.agent-workflow.local.json` 与 `AGENTS.framework.md`），执行前先确认用户要的是后者。 |
+| `task_exists` | 目标任务目录（如 `tasks/kickoff/`）已存在 | **不要用同一 task-id 重跑 start/adopt**。想接着既有任务干 → 改用 `status` / `context` 续接，不写盘；想在同一工作区加一条新任务 → 传 `--task-id <新ID>`，但这会真建新的任务目录（已纳管项目上会新增 `AGENTS.framework.md`；既有 `.agent-workflow.local.json` 会被保留，零配置导航仍指向原任务），执行前先确认用户要的是后者。 |
 | `workspace_exists` | 执行 `start` 时工作区目录已存在 | 若需纳管既有代码，改用 `adopt`；若是新项目，更换尚不存在的目标路径。框架不覆盖任何已有文件。 |
 | `workspace_not_found` | 执行 `adopt` 或后续命令时目标目录不存在 | 检查工作区绝对路径是否拼写错误或盘符不符。 |
 | `transition_blocked` | 推进阶段（`advance`）时前置检查未满足 | 运行 `context --check` 检查缺失事实或未通过门禁；编辑 `payload.json` 或 `plan.md` 后运行 `context --write` 重建索引再推进。 |
@@ -37,5 +37,6 @@
 | `private_workspace_required` | 试图将框架源码目录作为业务工作区 | 业务项目必须独立于框架源码 checkout 之外。 |
 | `invalid_mode` | 交互档位不合法 | 档位仅支持 `assisted`、`full-auto`、`manual-review` 之一。 |
 | `invalid_project_facts` | 已有 `project.json` 损坏或格式不符 | 检查工作区根目录 `project.json`，确保包含 `schema_version: "1.0"` 与 `project_id`。 |
+| `project_identity_mismatch` | 工作区已有 `project.json`，其 `project_id` 与本次 `--project-id` 不同 | 一个工作区只对应一个项目身份。改用已有 ID 续接，或换一个工作区；该命令在写入前就停止，没有文件被改动，不要反复试错。 |
 
 这些诊断不安装业务环境、不改系统默认解释器、PATH、代理或 VPN。工具自检或骨架创建成功也不等于业务环境已经配置或运行通过。

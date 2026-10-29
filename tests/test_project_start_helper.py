@@ -100,6 +100,20 @@ class ProjectStartHelperTests(unittest.TestCase):
         self.assertNotIn("No project was created", error["message"])
         self.assertFalse(self.workspace.exists())
 
+    def test_locate_walks_up_from_a_project_subdirectory(self) -> None:
+        workspace = Path(self.temp.name) / "adopted"
+        (workspace / "src" / "deep").mkdir(parents=True)
+        (workspace / ".agent-workflow.local.json").write_text(
+            json.dumps({"schema_version": "1.0", "framework_root": str(ROOT), "task_id": "kickoff"}),
+            encoding="utf-8")
+        env = self.env.copy()
+        env["LOCALAPPDATA"] = str(Path(self.temp.name) / "empty-local")
+        env["XDG_CONFIG_HOME"] = str(Path(self.temp.name) / "empty-config")
+        result = subprocess.run([sys.executable, str(HELPER), "--locate"], cwd=workspace / "src" / "deep",
+                                env=env, capture_output=True, text=True, check=False, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(json.loads(result.stdout), {"ok": True, "framework_root": str(ROOT)})
+
     def test_forwarded_partial_completion_is_not_rewritten_or_replayed(self) -> None:
         created = self.helper("--framework", ROOT, "--", "new", self.workspace,
                               "--project-id", "synthetic-recovery", "--workflow", "ecommerce-catalog",

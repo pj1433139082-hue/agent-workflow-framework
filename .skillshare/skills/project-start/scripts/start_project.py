@@ -42,14 +42,34 @@ def verified(path: str | Path) -> Path:
     return root
 
 
+def project_marker(start: Path) -> Path | None:
+    """Walk up from the working directory the way the read-only hook does.
+
+    Agents routinely work in a subdirectory of an adopted project. Looking only
+    at the current directory would lose a marker that is two levels up and send
+    the operator looking for a framework path that is already recorded.
+    """
+    try:
+        current = start.resolve()
+    except (OSError, RuntimeError):
+        return None
+    for directory in [current, *current.parents]:
+        marker = directory / ".agent-workflow.local.json"
+        if marker.is_file():
+            return marker
+        if (directory / ".git").is_dir():
+            return None
+    return None
+
+
 def locate(explicit: str | None) -> Path:
     if explicit:
         return verified(explicit)
     configured = os.environ.get("AGENT_WORKFLOW_FRAMEWORK")
     if configured:
         return verified(configured)
-    marker = Path.cwd() / ".agent-workflow.local.json"
-    if marker.is_file():
+    marker = project_marker(Path.cwd())
+    if marker is not None:
         return verified(read_location(marker))
     parents = Path(__file__).resolve().parents
     if len(parents) > 4 and (parents[4] / "agent_workflow/project_start.py").is_file():

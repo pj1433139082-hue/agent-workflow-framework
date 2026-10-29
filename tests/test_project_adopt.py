@@ -59,6 +59,17 @@ class ProjectAdoptCliTests(unittest.TestCase):
         self.assertFalse((workspace / "tasks").exists())
         self.assertFalse((workspace / "docs").exists())
 
+    def test_adopt_detects_broader_environment_families(self) -> None:
+        workspace = self.base / "mixed-stack"
+        workspace.mkdir()
+        (workspace / "App.csproj").write_text("<Project />", encoding="utf-8")
+        (workspace / "CMakeLists.txt").write_text("project(synthetic)\n", encoding="utf-8")
+        (workspace / "composer.json").write_text("{}", encoding="utf-8")
+        res = self.result(self.cli("adopt", workspace, "--project-id", "mixed-stack"), ok=True)
+        self.assertEqual(res["detected_environments"]["dotnet"], ["App.csproj"])
+        self.assertEqual(res["detected_environments"]["cpp"], ["CMakeLists.txt"])
+        self.assertEqual(res["detected_environments"]["php"], ["composer.json"])
+
     def test_adopt_preserves_code_git_and_readme_and_creates_framework_skeleton(self) -> None:
         workspace = self.base / "legacy-project"
         workspace.mkdir()
@@ -100,6 +111,52 @@ class ProjectAdoptCliTests(unittest.TestCase):
         status_proc = self.cli("status", workspace, "--task-id", "kickoff")
         status_res = self.result(status_proc, ok=True)
         self.assertEqual(status_res["task"]["stage"], "scope")
+
+    def test_adopt_refuses_conflicting_project_identity_without_writing(self) -> None:
+        workspace = self.base / "existing-project"
+        workspace.mkdir()
+        facts = workspace / "project.json"
+        facts.write_text('{"schema_version": "1.0", "project_id": "legacy-core"}', encoding="utf-8")
+        (workspace / "README.md").write_text("# Existing\n", encoding="utf-8")
+        before = {path: path.read_bytes() for path in workspace.rglob("*") if path.is_file()}
+        res = self.result(self.cli("adopt", workspace, "--project-id", "other-id", "--apply"), ok=False)
+        self.assertEqual(res["error"]["code"], "project_identity_mismatch")
+        self.assertIn("legacy-core", res["error"]["message"])
+        after = {path: path.read_bytes() for path in workspace.rglob("*") if path.is_file()}
+        self.assertEqual(before, after)
+        self.assertFalse((workspace / "tasks").exists())
+        self.assertFalse((workspace / ".agent-workflow.local.json").exists())
+
+    def test_adopt_keeps_existing_local_marker_and_reports_task_files(self) -> None:
+        workspace = self.base / "adopt-marker"
+        workspace.mkdir()
+        marker = workspace / ".agent-workflow.local.json"
+        original = '{"schema_version": "1.0", "framework_root": "C:/existing/framework", "task_id": "legacy-task"}'
+        marker.write_text(original, encoding="utf-8")
+        res = self.result(self.cli("adopt", workspace, "--project-id", "marker-prj", "--apply"), ok=True)
+        self.assertEqual(marker.read_text(encoding="utf-8"), original)
+        self.assertIn(".agent-workflow.local.json", res["preserved_files"])
+        self.assertNotIn(".agent-workflow.local.json", res["created_files"])
+        self.assertEqual(res["local_marker"], {"file": ".agent-workflow.local.json",
+                                               "preserved": True, "active_task_id": "legacy-task"})
+        for name in ("task.json", "payload.json", "plan.md"):
+            self.assertIn(f"tasks/kickoff/{name}", res["created_files"])
+        self.assertTrue((workspace / "tasks/kickoff/task.json").is_file())
+
+    def test_adopt_second_task_does_not_retarget_the_pointer(self) -> None:
+        workspace = self.base / "two-tasks"
+        workspace.mkdir()
+        first = self.result(self.cli("adopt", workspace, "--project-id", "two-tasks-prj", "--apply"), ok=True)
+        self.assertEqual(first["local_marker"]["active_task_id"], "kickoff")
+        second = self.result(self.cli("adopt", workspace, "--project-id", "two-tasks-prj",
+                                      "--task-id", "review", "--apply"), ok=True)
+        marker = json.loads((workspace / ".agent-workflow.local.json").read_text(encoding="utf-8"))
+        self.assertEqual(marker["task_id"], "kickoff")
+        self.assertEqual(second["local_marker"], {"file": ".agent-workflow.local.json",
+                                                  "preserved": True, "active_task_id": "kickoff"})
+        self.assertIn("tasks/review/plan.md", second["created_files"])
+        status = self.result(self.cli("status", workspace, "--task-id", "review"), ok=True)
+        self.assertEqual(status["task"]["id"], "review")
 
     def test_context_hook_zero_config_detects_workspace_from_cwd(self) -> None:
         workspace = self.base / "active-project"
