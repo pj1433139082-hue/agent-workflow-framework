@@ -577,10 +577,26 @@ def decision(workspace: str | Path, task_id: str, decision_id: str, answer: str,
     plain_text(by, maximum=100)
 
     def prepare(verified: VerifiedTask) -> tuple[dict[str, Any], dict[str, Any]]:
-        stage = next(stage for stage in verified.pack["stages"] if stage["id"] == verified.task["stage"])
-        definition = next((check for check in stage["checks"] if check["kind"] == "decision" and check["id"] == decision_id), None)
+        index = next(index for index, stage in enumerate(verified.pack["stages"]) if stage["id"] == verified.task["stage"])
+        # A stage at or before the current one can be answered. An earlier stage
+        # stays answerable only for a decision that already holds a recorded
+        # answer: editing the evidence later invalidates it, and re-recording the
+        # answer against the new digest is the only supported repair. A question
+        # that was never recorded must not be answered from behind an
+        # already-passed stage, and a stage whose checks never ran must not be
+        # reachable at all.
+        recorded = verified.task["decisions"]
+
+        def eligible(stage: dict[str, Any]) -> bool:
+            if stage["id"] == verified.task["stage"]:
+                return True
+            return decision_id in recorded
+
+        definition = next((check for stage in verified.pack["stages"][:index + 1] if eligible(stage)
+                           for check in stage["checks"]
+                           if check["kind"] == "decision" and check["id"] == decision_id), None)
         if definition is None or answer not in definition["answers"]:
-            raise WorkflowError("invalid_decision", "Only a current, defined business question with an explicit choice can be answered.")
+            raise WorkflowError("invalid_decision", "Only a defined business question at or before the current stage, with an explicit choice, can be answered.")
         return ({"decision_id": decision_id, "answer": answer, "by": by},
                 {"decisions": {**verified.task["decisions"], decision_id:
                                {"answer": answer, "by": by, "evidence_digest": verified.evidence_digest}}})

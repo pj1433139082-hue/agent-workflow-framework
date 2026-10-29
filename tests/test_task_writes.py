@@ -295,6 +295,85 @@ class TaskWriteCliTests(unittest.TestCase):
                          "transition_blocked")
         self.assertEqual(self.hashes(), before)
 
+    def test_decision_can_be_rerecorded_after_advancing_when_evidence_changed(self) -> None:
+        self.write_payload()
+        self.command("advance", self.workspace, "--task-id", "review", "--apply")
+        (self.task / "review.md").write_text("# 合成审核\n\n## 检查结论\n只核验临时资料。\n", encoding="utf-8")
+        answer = ["decision", self.workspace, "--task-id", "review", "--decision-id", "review-acceptance",
+                  "--answer", "accept", "--by", "synthetic-reviewer"]
+        self.command(*answer, "--apply")
+        self.command("advance", self.workspace, "--task-id", "review", "--apply")
+        self.assertEqual(self.command("status", self.workspace, "--task-id", "review")["task"]["stage"], "ready")
+        # Editing earlier evidence invalidates the recorded answer while the
+        # stage can no longer move backwards.
+        (self.task / "review.md").write_text("# 合成审核\n\n## 检查结论\n重新核对合成字段。\n", encoding="utf-8")
+        stale = self.command("status", self.workspace, "--task-id", "review")
+        self.assertFalse(next(check for check in stale["checks"] if check["id"] == "review-acceptance")["passed"])
+        self.assertEqual([decision["id"] for decision in stale["pending_decisions"]], ["review-acceptance"])
+        self.assertEqual(stale["pending_decisions"][0]["required_answer"], "accept")
+        before = self.hashes()
+        # A preview reports the answer without applying it and writes nothing at all.
+        self.assertFalse(self.command(*answer)["applied"])
+        self.assertEqual(self.hashes(), before)
+        applied = self.command(*answer, "--apply")
+        self.assertTrue(applied["applied"])
+        self.assertTrue(applied["completion"]["operation"] == "completed")
+        current = self.command("status", self.workspace, "--task-id", "review")
+        self.assertTrue(next(check for check in current["checks"] if check["id"] == "review-acceptance")["passed"])
+        self.assertEqual(current["pending_decisions"], [])
+        self.assertEqual(current["task"]["stage"], "ready")  # Re-recording is not a transition.
+        facts = json.loads((self.task / "task.json").read_text(encoding="utf-8"))
+        self.assertEqual(facts["stage"], "ready")
+        recorded = facts["decisions"]["review-acceptance"]
+        self.assertEqual((recorded["answer"], recorded["by"]), ("accept", "synthetic-reviewer"))
+        # The digest is the composite of every evidence file, and re-recording rebinds it to
+        # the edited evidence rather than carrying the stale binding forward.
+        self.assertNotEqual(recorded["evidence_digest"], stale["sources"]["tasks/review/review.md"])
+
+    def test_decision_answering_is_still_bounded_by_stage_and_definition(self) -> None:
+        args = self.operation("decision")  # Writes payload.json, advances to review, fills review.md.
+        facts = self.task / "task.json"
+        before = self.hashes()
+        preview = ["decision", self.workspace, "--task-id", "review", "--decision-id", "review-acceptance",
+                   "--answer", "accept", "--by", "synthetic-reviewer"]
+        for answer in ("accept", "revise"):  # Previewing a current question stays read-only.
+            current_answer = [*preview[:7], answer, *preview[8:]]
+            self.assertTrue(self.command(*current_answer)["applied"] is False)
+            self.assertEqual(self.hashes(), before)
+        self.command(*args, "--apply")
+        current = self.command("status", self.workspace, "--task-id", "review")
+        checks = {check["id"]: check for check in current["checks"]}
+        self.assertTrue(checks["review-acceptance"]["passed"])
+        self.assertEqual(current["pending_decisions"], [])
+        recorded = json.loads(facts.read_text(encoding="utf-8"))["decisions"]["review-acceptance"]
+        self.assertEqual(recorded["by"], "synthetic-reviewer")
+        # Re-answering a question the current stage defines was always allowed.
+        self.assertTrue(self.command("decision", self.workspace, "--task-id", "review", "--decision-id",
+                                     "review-acceptance", "--answer", "revise", "--by", "synthetic-reviewer")["applied"] is False)
+        self.command("advance", self.workspace, "--task-id", "review", "--apply")
+        self.assertEqual(self.command("status", self.workspace, "--task-id", "review")["task"]["stage"], "ready")
+        # Answering a question whose checks never ran requires a stage the task never reached;
+        # a stage move backwards must not make the unrecorded decision answerable.
+        hidden = {"schema_version": "1.0", "id": "review", "project_id": "synthetic-write",
+                  "workflow": "ecommerce-catalog", "pack_digest": json.loads(facts.read_text(encoding="utf-8"))["pack_digest"],
+                  "mode": "assisted", "stage": "collect", "next_action": "Synthetic stage move.", "decisions": {}}
+        facts.write_text(json.dumps(hidden, ensure_ascii=False), encoding="utf-8")
+        moved = self.hashes()
+        for answer in ("accept", "undefined"):
+            with self.subTest(answer=answer):
+                rejected = self.command("decision", self.workspace, "--task-id", "review", "--decision-id",
+                                        "review-acceptance", "--answer", answer, "--by", "synthetic-reviewer",
+                                        "--apply", ok=False)
+                self.assertEqual(rejected["error"]["code"], "invalid_decision")
+                self.assertEqual(rejected["completion"]["operation"], "not_completed")
+                self.assertEqual(self.hashes(), moved)
+        # Idle recovery in the same mode is always allowed.
+        facts.write_text(json.dumps({**hidden, "stage": "ready"}, ensure_ascii=False), encoding="utf-8")
+        recovered = self.hashes()
+        self.assertTrue(self.command("task-plan", self.workspace, "--task-id", "review",
+                                     "--next-action", "Synthetic recovery step.", "--apply")["applied"])
+        self.assertNotEqual(self.hashes(), recovered)
+
     def test_invalid_arguments_or_identity_never_change_facts_or_index(self) -> None:
         cases = (
             ["advance", self.workspace, "--task-id", "wrong-task", "--apply"],
