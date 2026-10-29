@@ -71,9 +71,11 @@ def locate(explicit: str | None) -> Path:
     marker = project_marker(Path.cwd())
     if marker is not None:
         return verified(read_location(marker))
-    parents = Path(__file__).resolve().parents
-    if len(parents) > 4 and (parents[4] / "agent_workflow/project_start.py").is_file():
-        return verified(parents[4])
+    # A source checkout keeps this skill under .skillshare/skills/<name>; find the
+    # framework by its own module file instead of assuming a fixed depth.
+    for ancestor in Path(__file__).resolve().parents:
+        if (ancestor / "agent_workflow/project_start.py").is_file():
+            return verified(ancestor)
     if os.name == "nt" and os.environ.get("LOCALAPPDATA"):
         base = Path(os.environ["LOCALAPPDATA"])
     else:
